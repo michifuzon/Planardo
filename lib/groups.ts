@@ -26,35 +26,9 @@ function client() {
 
 export async function fetchMyGroups(): Promise<Group[]> {
   const db = client();
-  let { data: memberships, error } = await db
-    .from("group_members")
-    .select("group_id, groups(id, name, emoji, color, description, photo_url, created_by)");
-  if (error?.code === "42703" || error?.code === "PGRST204") {
-    const fallback = await db.from("group_members").select("group_id, groups(id, name, emoji, color, created_by)");
-    memberships = fallback.data as typeof memberships;
-    error = fallback.error;
-  }
+  const { data, error } = await db.rpc("get_my_groups");
   if (error) throw error;
-
-  const groups = (memberships || [])
-    .map((m: any) => m.groups)
-    .filter(Boolean) as Omit<Group, "members">[];
-  if (groups.length === 0) return [];
-
-  const groupIds = groups.map((g) => g.id);
-  const { data: allMembers, error: membersError } = await db
-    .from("group_members")
-    .select("group_id, profiles(id, name, username, avatar_color, avatar_url)")
-    .in("group_id", groupIds);
-  if (membersError) throw membersError;
-
-  return groups.map((g) => ({
-    ...g,
-    members: (allMembers || [])
-      .filter((m: any) => m.group_id === g.id)
-      .map((m: any) => m.profiles)
-      .filter(Boolean),
-  }));
+  return (Array.isArray(data) ? data : []) as Group[];
 }
 
 export async function createGroup(name: string, emoji: string, color: string, description?:string, photoFile?:File) {

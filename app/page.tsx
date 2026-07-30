@@ -74,7 +74,7 @@ export default function Page() {
     setGroupsLoading(true);
     fetchMyGroups()
       .then(setGroups)
-      .catch(() => setGroups([]))
+      .catch((error) => console.error("No se pudieron cargar los grupos:", error))
       .finally(() => setGroupsLoading(false));
   }, []);
 

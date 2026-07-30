@@ -55,7 +55,7 @@ export default function ProfileView({ fallbackName, email, groupCount, friendCou
         <div className="profile-hero">
           <button type="button" className="profile-photo" onClick={() => inputRef.current?.click()}>
             <Avatar initials={name.slice(0,2).toUpperCase()} color="#8b5cf6" src={preview || profile?.avatar_url}/>
-            <span><Camera size={15}/></span>
+            <span className="profile-camera"><Camera size={15}/></span>
           </button>
           <input ref={inputRef} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(e)=>pickAvatar(e.target.files?.[0])}/>
           <div><h2>{name || fallbackName}</h2><p>@{username || "tu_username"} · {email}</p></div>
