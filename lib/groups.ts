@@ -26,9 +26,14 @@ function client() {
 
 export async function fetchMyGroups(): Promise<Group[]> {
   const db = client();
-  const { data: memberships, error } = await db
+  let { data: memberships, error } = await db
     .from("group_members")
     .select("group_id, groups(id, name, emoji, color, description, photo_url, created_by)");
+  if (error?.code === "42703" || error?.code === "PGRST204") {
+    const fallback = await db.from("group_members").select("group_id, groups(id, name, emoji, color, created_by)");
+    memberships = fallback.data as typeof memberships;
+    error = fallback.error;
+  }
   if (error) throw error;
 
   const groups = (memberships || [])
@@ -60,15 +65,20 @@ export async function createGroup(name: string, emoji: string, color: string, de
 
   const { data, error } = await db
     .from("groups")
-    .insert({ name, emoji, color, description:description||null, created_by: userId })
+    .insert({ name, emoji, color, created_by: userId })
     .select()
     .single();
   if (error) throw error;
+  if (description) {
+    const { error: descriptionError } = await db.from("groups").update({ description }).eq("id", data.id);
+    if (descriptionError && descriptionError.code !== "42703" && descriptionError.code !== "PGRST204") throw descriptionError;
+  }
   if(photoFile){
     const ext=photoFile.name.split(".").pop()||"jpg";const path=`groups/${data.id}-${Date.now()}.${ext}`;
     const {error:uploadError}=await db.storage.from("plan-media").upload(path,photoFile);if(uploadError)throw uploadError;
     const photo_url=db.storage.from("plan-media").getPublicUrl(path).data.publicUrl;
-    const {error:updateError}=await db.from("groups").update({photo_url}).eq("id",data.id);if(updateError)throw updateError;
+    const {error:updateError}=await db.from("groups").update({photo_url}).eq("id",data.id);
+    if(updateError && updateError.code !== "42703" && updateError.code !== "PGRST204")throw updateError;
   }
   return data;
 }

@@ -2,7 +2,7 @@
 
 import { Camera, Check, LoaderCircle, Save } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { fetchMyProfile, updateMyProfile, usernameAvailable, type FullProfile } from "@/lib/profiles";
+import { fetchMyProfile, fetchMyStats, updateMyProfile, usernameAvailable, type FullProfile } from "@/lib/profiles";
 import Avatar from "./Avatar";
 
 export default function ProfileView({ fallbackName, email, groupCount, friendCount, onChanged }: {
@@ -16,12 +16,14 @@ export default function ProfileView({ fallbackName, email, groupCount, friendCou
   const [preview, setPreview] = useState("");
   const [status, setStatus] = useState<"loading"|"idle"|"saving"|"saved"|"error">("loading");
   const [message, setMessage] = useState("");
+  const [stats,setStats]=useState({groups:groupCount,friends:friendCount});
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchMyProfile().then((p) => {
       setProfile(p); setName(p.name); setUsername(p.username); setBio(p.bio || ""); setStatus("idle");
     }).catch(() => { setStatus("error"); setMessage("Primero ejecutá la migración 0002 en Supabase."); });
+    fetchMyStats().then(setStats).catch(()=>{});
   }, []);
 
   async function save(e: React.FormEvent) {
@@ -57,7 +59,7 @@ export default function ProfileView({ fallbackName, email, groupCount, friendCou
           </button>
           <input ref={inputRef} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(e)=>pickAvatar(e.target.files?.[0])}/>
           <div><h2>{name || fallbackName}</h2><p>@{username || "tu_username"} · {email}</p></div>
-          <div className="profile-stats"><span><b>{groupCount}</b> grupos</span><span><b>{friendCount}</b> amigos</span></div>
+          <div className="profile-stats"><span><b>{stats.groups}</b> grupos</span><span><b>{stats.friends}</b> amigos</span></div>
         </div>
         <div className="profile-fields">
           <label><span>Nombre</span><input value={name} onChange={(e)=>setName(e.target.value)} maxLength={50}/></label>

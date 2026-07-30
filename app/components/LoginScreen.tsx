@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Eye, EyeOff, Lock, Mail, RotateCw, Sparkles } from "lucide-react";
+import { ArrowRight, AtSign, Eye, EyeOff, Lock, Mail, RotateCw, Sparkles, UserRound } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -20,6 +20,8 @@ export default function LoginScreen() {
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name,setName]=useState("");
+  const [username,setUsername]=useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -33,6 +35,11 @@ export default function LoginScreen() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim() || !password || !supabase) return;
+    if (mode==="signup" && (!name.trim() || username.length<3)) {
+      setErrorMsg("Completá tu nombre y elegí un username de al menos 3 caracteres.");
+      setStatus("error");
+      return;
+    }
     setStatus("loading");
     setErrorMsg("");
 
@@ -40,7 +47,10 @@ export default function LoginScreen() {
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
-        options: { emailRedirectTo: typeof window !== "undefined" ? window.location.href : undefined },
+        options: {
+          emailRedirectTo: typeof window !== "undefined" ? window.location.href : undefined,
+          data: { name:name.trim(), username:username.toLowerCase() },
+        },
       });
       if (error) {
         setErrorMsg(errorMessages[error.message] || error.message);
@@ -95,6 +105,10 @@ export default function LoginScreen() {
               </p>
 
               <form onSubmit={submit} className="auth-form">
+                {mode==="signup"&&<>
+                  <label className="auth-input"><UserRound size={18}/><input required placeholder="Tu nombre" value={name} onChange={e=>setName(e.target.value)}/></label>
+                  <label className="auth-input"><AtSign size={18}/><input required minLength={3} maxLength={24} placeholder="username" value={username} onChange={e=>setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,""))}/></label>
+                </>}
                 <label className={`auth-input ${status === "error" ? "auth-input-error" : ""}`}>
                   <Mail size={18} />
                   <input

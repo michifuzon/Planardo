@@ -34,7 +34,10 @@ begin
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
-    left(base_username, 18) || '_' || substr(new.id::text, 1, 5)
+    case
+      when new.raw_user_meta_data->>'username' is not null then left(base_username, 24)
+      else left(base_username, 18) || '_' || substr(new.id::text, 1, 5)
+    end
   )
   on conflict (id) do nothing;
   return new;
@@ -242,6 +245,18 @@ create table if not exists public.notifications (
   type text not null, title text not null, body text, plan_id uuid references public.plans(id) on delete cascade,
   read_at timestamptz, created_at timestamptz not null default now()
 );
+create or replace function public.notify_friend_request()
+returns trigger language plpgsql security definer set search_path=public as $$
+declare requester_name text;
+begin
+  select name into requester_name from profiles where id=new.requester_id;
+  insert into notifications(user_id,type,title,body)
+  values(new.addressee_id,'friend_request',requester_name || ' quiere ser tu amigo/a','Tocá para responder la solicitud.');
+  return new;
+end $$;
+drop trigger if exists on_friend_request_created on public.friendships;
+create trigger on_friend_request_created after insert on public.friendships
+for each row execute function public.notify_friend_request();
 create table if not exists public.plan_templates (
   id uuid primary key default gen_random_uuid(), owner_id uuid references public.profiles(id) on delete cascade,
   name text not null, emoji text not null, plan_type text not null, defaults jsonb not null default '{}'::jsonb,

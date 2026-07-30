@@ -51,3 +51,10 @@ export async function respondFriendRequest(requesterId: string, accept: boolean)
     if (error) throw error;
   }
 }
+
+export async function removeFriend(requesterId: string, addresseeId: string) {
+  const db = client();
+  const { error } = await db.from("friendships").delete()
+    .eq("requester_id", requesterId).eq("addressee_id", addresseeId);
+  if (error) throw error;
+}

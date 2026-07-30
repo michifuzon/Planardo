@@ -51,3 +51,18 @@ export async function updateMyProfile(input: { name: string; username: string; b
   if (error) throw error;
   return data as FullProfile;
 }
+
+export async function fetchMyStats() {
+  const db = client();
+  const { data: auth } = await db.auth.getUser();
+  if (!auth.user) return { groups: 0, friends: 0 };
+  const [groupsResult, friendsResult] = await Promise.all([
+    db.from("group_members").select("group_id", { count: "exact", head: true }).eq("user_id", auth.user.id),
+    db.from("friendships").select("requester_id", { count: "exact", head: true })
+      .eq("status", "accepted")
+      .or(`requester_id.eq.${auth.user.id},addressee_id.eq.${auth.user.id}`),
+  ]);
+  if (groupsResult.error) throw groupsResult.error;
+  if (friendsResult.error) throw friendsResult.error;
+  return { groups: groupsResult.count || 0, friends: friendsResult.count || 0 };
+}

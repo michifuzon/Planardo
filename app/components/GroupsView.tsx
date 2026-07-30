@@ -30,9 +30,11 @@ export default function GroupsView({
   const [photo,setPhoto]=useState<File>();
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
+  const [toastError,setToastError]=useState(false);
 
-  function showToast(msg: string) {
+  function showToast(msg: string, error = false) {
     setToast(msg);
+    setToastError(error);
     window.setTimeout(() => setToast(""), 2800);
   }
 
@@ -51,9 +53,10 @@ export default function GroupsView({
       onRefresh();
       showToast("Grupo creado 🎉");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const raw = err as { message?: string; details?: string; hint?: string };
+      const msg = err instanceof Error ? err.message : raw?.message || raw?.details || raw?.hint || "Error desconocido";
       console.error("createGroup failed:", err);
-      showToast(`No se pudo crear el grupo: ${msg}`);
+      showToast(`No se pudo crear el grupo. ${msg}`, true);
     } finally {
       setSaving(false);
     }
@@ -66,7 +69,7 @@ export default function GroupsView({
       await navigator.clipboard.writeText(url);
       showToast("Link copiado — mandaselo a tu gente 📋");
     } catch {
-      showToast("No se pudo generar el link. Probá de nuevo.");
+      showToast("No se pudo generar el link. Probá de nuevo.", true);
     }
   }
 
@@ -204,10 +207,8 @@ export default function GroupsView({
 
       <AnimatePresence>
         {toast && (
-          <motion.div className="toast" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}>
-            <span>
-              <Check />
-            </span>
+          <motion.div className={`toast ${toastError?"toast-error":""}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}>
+            <span>{toastError?<X/>:<Check />}</span>
             <div>
               <b>{toast}</b>
             </div>
