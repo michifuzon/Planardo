@@ -24,6 +24,7 @@ export default function PlanDetail({id,onBack}:{id:string;onBack:()=>void}) {
   const [field,setField]=useState("");
   const [field2,setField2]=useState("");
   const [comment,setComment]=useState("");
+  const [conflicts,setConflicts]=useState<Array<{id:string;name:string;emoji:string;starts_at:string;ends_at:string|null}>>([]);
   const photoRef=useRef<HTMLInputElement>(null);
   const load=useCallback(()=>{setLoading(true);fetchPlanDetail(id).then(setPlan).finally(()=>setLoading(false));},[id]);
   useEffect(()=>{load()},[load]);
@@ -37,7 +38,11 @@ export default function PlanDetail({id,onBack}:{id:string;onBack:()=>void}) {
   const start=new Date(plan.starts_at), end=plan.ends_at?new Date(plan.ends_at):null;
   const days=end?Math.max(1,Math.round((end.getTime()-start.getTime())/86400000)+1):1;
 
-  async function answer(response:"going"|"maybe"|"declined"){await respondToPlan(id,response);load()}
+  async function answer(response:"going"|"maybe"|"declined"){
+    const result=await respondToPlan(id,response);
+    if(result.status==="conflict"){setConflicts(result.conflicts||[]);return;}
+    setConflicts([]);load();
+  }
   async function submitQuick(){
     if(!field.trim())return;
     if(quick.type==="check")await addChecklistItem(id,field);
@@ -78,5 +83,6 @@ export default function PlanDetail({id,onBack}:{id:string;onBack:()=>void}) {
     </motion.div></AnimatePresence>
 
     <AnimatePresence>{quick.open&&<motion.div className="modal-backdrop" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}><motion.div className="quick-modal edge" initial={{scale:.96,y:12}} animate={{scale:1,y:0}}><div className="modal-head"><div><p className="eyebrow">AGREGAR</p><h2>{quick.type==="check"?"Nueva tarea":quick.type==="item"?"¿Qué hay que llevar?":quick.type==="timeline"?"Actividad":quick.type==="expense"?"Nuevo gasto":"Nueva encuesta"}</h2></div><button onClick={()=>setQuick({type:"",open:false})}><X/></button></div><label className="quick-field"><span>{quick.type==="poll"?"Pregunta":"Nombre"}</span><input autoFocus value={field} onChange={e=>setField(e.target.value)}/></label>{["timeline","expense","poll"].includes(quick.type)&&<label className="quick-field"><span>{quick.type==="timeline"?"Fecha y hora":quick.type==="expense"?"Importe":"Opciones separadas por coma"}</span><input type={quick.type==="timeline"?"datetime-local":quick.type==="expense"?"number":"text"} value={field2} onChange={e=>setField2(e.target.value)}/></label>}<button className="create-submit" onClick={submitQuick}>Agregar <ChevronRight/></button></motion.div></motion.div>}</AnimatePresence>
+    <AnimatePresence>{conflicts.length>0&&<motion.div className="modal-backdrop" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}><motion.div className="conflict-modal edge" initial={{scale:.96,y:12}} animate={{scale:1,y:0}}><span className="conflict-icon">!</span><h2>Ya tenés otro plan</h2><p>Para cuidar tu agenda, no podés confirmar dos Planardos superpuestos.</p>{conflicts.map(c=><div className="conflict-plan" key={c.id}><b>{c.emoji} {c.name}</b><small>{new Date(c.starts_at).toLocaleString("es-AR",{weekday:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}</small></div>)}<button className="create-submit" onClick={()=>setConflicts([])}>Entendido</button></motion.div></motion.div>}</AnimatePresence>
   </section>
 }

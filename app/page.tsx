@@ -137,13 +137,13 @@ export default function Page() {
         <Brand />
         <nav>
           {NAV_ITEMS.map(([id, Icon, label]) => (
-            <button key={id} className={active === id ? "active" : ""} onClick={() => setActive(id)}>
+            <button key={id} className={active === id && !selectedPlan ? "active" : ""} onClick={() => {setActive(id);setSelectedPlan(null)}}>
               <Icon size={20}/><span>{label}</span>
             </button>
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <button className="profile" onClick={() => setActive("profile")}><Avatar initials={initials} color="linear-gradient(135deg,#8b5cf6,#ec4899)"/><span><b>{name}</b><small>Mi perfil</small></span></button>
+          <button className="profile" onClick={() => {setActive("profile");setSelectedPlan(null)}}><Avatar initials={initials} color="linear-gradient(135deg,#8b5cf6,#ec4899)"/><span><b>{name}</b><small>Mi perfil</small></span></button>
           {supabaseEnabled && (
             <button className="profile" onClick={() => signOut()}><span className="signout-icon"><LogOut size={16}/></span><span><b>Salir</b><small>Cerrar sesión</small></span></button>
           )}
@@ -260,7 +260,7 @@ export default function Page() {
               <div className="greeting">
                 <div><p className="eyebrow">DISPONIBILIDAD</p><h1>¿Cuándo pueden?</h1><p>PLANARDO encuentra la mejor coincidencia por ustedes.</p></div>
               </div>
-              <AvailabilityView/>
+              <AvailabilityView groups={groups}/>
               <section className="calendar-section">
                 <div className="calendar-card edge">
                   <div className="calendar-header">
@@ -272,6 +272,12 @@ export default function Page() {
                     {days.map((day,i) => day === null ? <div className="day muted" key={i}/> :
                       <button key={i} onClick={() => setSelectedDay(day)} className={`day ${selectedDay?.toDateString()===day.toDateString()?"selected":""} ${day.toDateString()===new Date().toDateString()?"today":""}`}>
                         <span className="day-number">{day.getDate()}</span>
+                        <span className="calendar-plan-dots">{plans.filter(plan=>{
+                          const start=new Date(plan.starts_at),end=plan.ends_at?new Date(plan.ends_at):start;
+                          const from=new Date(day.getFullYear(),day.getMonth(),day.getDate());
+                          const until=new Date(day.getFullYear(),day.getMonth(),day.getDate()+1);
+                          return start<until&&end>=from;
+                        }).slice(0,3).map(plan=><i key={plan.id} style={{background:plan.color}} title={`${plan.emoji} ${plan.name}`}/>)}</span>
                       </button>
                     )}
                   </div>
@@ -280,7 +286,13 @@ export default function Page() {
                   {selectedDay ? (
                     <>
                       <div className="day-detail-head"><div><p className="eyebrow">{selectedDay.toLocaleDateString("es-AR",{weekday:"long"}).toUpperCase()}</p><h3>{selectedDay.toLocaleDateString("es-AR",{day:"numeric",month:"long"})}</h3></div><button onClick={() => setSelectedDay(null)}><X size={18}/></button></div>
-                      <p className="availability-note">La disponibilidad del grupo para este día todavía no está conectada — ¡se viene pronto!</p>
+                      <div className="day-plans">{plans.filter(plan=>{
+                        const start=new Date(plan.starts_at),end=plan.ends_at?new Date(plan.ends_at):start;
+                        const from=new Date(selectedDay.getFullYear(),selectedDay.getMonth(),selectedDay.getDate());
+                        const until=new Date(selectedDay.getFullYear(),selectedDay.getMonth(),selectedDay.getDate()+1);
+                        return start<until&&end>=from;
+                      }).map(plan=><button key={plan.id} onClick={()=>setSelectedPlan(plan.id)}><span style={{background:plan.color}}>{plan.emoji}</span><div><b>{plan.name}</b><small>{new Date(plan.starts_at).toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})} · {plan.my_response==="going"?"Confirmado":"Pendiente"}</small></div><ChevronRight/></button>)}</div>
+                      {!plans.some(plan=>{const start=new Date(plan.starts_at),end=plan.ends_at?new Date(plan.ends_at):start;const from=new Date(selectedDay.getFullYear(),selectedDay.getMonth(),selectedDay.getDate());const until=new Date(selectedDay.getFullYear(),selectedDay.getMonth(),selectedDay.getDate()+1);return start<until&&end>=from})&&<p className="availability-note">No tenés Planardos este día.</p>}
                     </>
                   ) : (
                     <p className="availability-note">Tocá un día del calendario para verlo acá.</p>

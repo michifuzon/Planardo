@@ -9,3 +9,9 @@ export async function setAvailability(day:string,status:"available"|"maybe"|"bus
   const db=client();const {data:auth}=await db.auth.getUser();
   const {error}=await db.from("availability").upsert({day,status,user_id:auth.user?.id});if(error)throw error;
 }
+export async function fetchGroupAvailability(groupId:string,from:Date,to:Date){
+  const {data,error}=await client().rpc("get_group_availability",{
+    target_group:groupId,range_start:from.toISOString(),range_end:to.toISOString(),
+  });
+  if(error)throw error;return data||[];
+}

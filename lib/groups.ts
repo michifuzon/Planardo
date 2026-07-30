@@ -83,3 +83,10 @@ export async function joinGroupWithInvite(code: string) {
   if (error) throw error;
   return data as string;
 }
+
+export async function deleteGroup(groupId:string){
+  const db=client();
+  const {data,error}=await db.rpc("delete_group",{target_group:groupId});
+  if(error)throw error;
+  return Boolean(data);
+}

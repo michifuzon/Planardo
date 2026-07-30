@@ -74,9 +74,9 @@ export async function fetchPlanDetail(id: string) {
 }
 
 export async function respondToPlan(planId:string,response:"going"|"maybe"|"declined"){
-  const db=client(); const {data:auth}=await db.auth.getUser();
-  const {error}=await db.from("plan_members").update({response,responded_at:new Date().toISOString()}).eq("plan_id",planId).eq("user_id",auth.user?.id);
+  const {data,error}=await client().rpc("respond_to_plan",{target_plan:planId,desired_response:response});
   if(error)throw error;
+  return data as {status:"updated"|"conflict";conflicts?:Array<{id:string;name:string;emoji:string;starts_at:string;ends_at:string|null}>};
 }
 export async function addChecklistItem(planId:string,label:string){
   const {error}=await client().from("plan_checklist").insert({plan_id:planId,label}); if(error)throw error;

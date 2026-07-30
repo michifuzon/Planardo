@@ -1,10 +1,11 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Link as LinkIcon, Plus, Users, X } from "lucide-react";
+import { Check, Link as LinkIcon, Plus, Trash2, Users, X } from "lucide-react";
 import { useState } from "react";
-import { createGroup, createInvite, type Group } from "@/lib/groups";
+import { createGroup, createInvite, deleteGroup, type Group } from "@/lib/groups";
 import Avatar from "./Avatar";
+import { useAuth } from "./AuthProvider";
 
 const EMOJIS = ["👥", "💙", "🎉", "🏠", "🌮", "⚡", "🎮", "⭐"];
 const COLORS = ["#8b5cf6", "#f97316", "#06b6d4", "#22c55e", "#ec4899"];
@@ -31,6 +32,8 @@ export default function GroupsView({
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
   const [toastError,setToastError]=useState(false);
+  const [deleteTarget,setDeleteTarget]=useState<Group|null>(null);
+  const {user}=useAuth();
 
   function showToast(msg: string, error = false) {
     setToast(msg);
@@ -72,6 +75,18 @@ export default function GroupsView({
       showToast("No se pudo generar el link. Probá de nuevo.", true);
     }
   }
+  async function handleDelete(){
+    if(!deleteTarget)return;
+    try{
+      await deleteGroup(deleteTarget.id);
+      setDeleteTarget(null);
+      await onRefresh();
+      showToast("Grupo eliminado");
+    }catch(err){
+      const raw=err as {message?:string};
+      showToast(raw?.message||"No se pudo eliminar el grupo.",true);
+    }
+  }
 
   return (
     <section className="groups-view">
@@ -107,6 +122,7 @@ export default function GroupsView({
                 <button className="group-invite" onClick={() => handleInvite(g.id)}>
                   <LinkIcon size={14} /> Invitar
                 </button>
+                {g.created_by===user?.id&&<button className="group-delete" onClick={()=>setDeleteTarget(g)} aria-label={`Eliminar ${g.name}`}><Trash2/></button>}
               </div>
               <h3>{g.name}</h3>
               {g.description&&<p className="group-description">{g.description}</p>}
@@ -204,6 +220,7 @@ export default function GroupsView({
           </motion.div>
         )}
       </AnimatePresence>
+      <AnimatePresence>{deleteTarget&&<motion.div className="modal-backdrop" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onMouseDown={e=>e.target===e.currentTarget&&setDeleteTarget(null)}><motion.div className="delete-group-modal edge" initial={{scale:.96,y:15}} animate={{scale:1,y:0}} exit={{scale:.97,y:10}}><span><Trash2/></span><h2>¿Eliminar {deleteTarget.name}?</h2><p>Se eliminarán el grupo, sus invitaciones y la relación entre sus integrantes. Esta acción no se puede deshacer.</p><div><button onClick={()=>setDeleteTarget(null)}>Cancelar</button><button className="danger" onClick={handleDelete}>Eliminar grupo</button></div></motion.div></motion.div>}</AnimatePresence>
 
       <AnimatePresence>
         {toast && (
