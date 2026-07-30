@@ -3,7 +3,9 @@ import { supabase } from "./supabase";
 export type Profile = {
   id: string;
   name: string;
+  username?: string;
   avatar_color: string;
+  avatar_url?: string | null;
 };
 
 export type Group = {
@@ -11,6 +13,8 @@ export type Group = {
   name: string;
   emoji: string;
   color: string;
+  description?: string | null;
+  photo_url?: string | null;
   created_by: string;
   members: Profile[];
 };
@@ -24,7 +28,7 @@ export async function fetchMyGroups(): Promise<Group[]> {
   const db = client();
   const { data: memberships, error } = await db
     .from("group_members")
-    .select("group_id, groups(id, name, emoji, color, created_by)");
+    .select("group_id, groups(id, name, emoji, color, description, photo_url, created_by)");
   if (error) throw error;
 
   const groups = (memberships || [])
@@ -35,7 +39,7 @@ export async function fetchMyGroups(): Promise<Group[]> {
   const groupIds = groups.map((g) => g.id);
   const { data: allMembers, error: membersError } = await db
     .from("group_members")
-    .select("group_id, profiles(id, name, avatar_color)")
+    .select("group_id, profiles(id, name, username, avatar_color, avatar_url)")
     .in("group_id", groupIds);
   if (membersError) throw membersError;
 
@@ -48,7 +52,7 @@ export async function fetchMyGroups(): Promise<Group[]> {
   }));
 }
 
-export async function createGroup(name: string, emoji: string, color: string) {
+export async function createGroup(name: string, emoji: string, color: string, description?:string, photoFile?:File) {
   const db = client();
   const { data: userData } = await db.auth.getUser();
   const userId = userData.user?.id;
@@ -56,10 +60,16 @@ export async function createGroup(name: string, emoji: string, color: string) {
 
   const { data, error } = await db
     .from("groups")
-    .insert({ name, emoji, color, created_by: userId })
+    .insert({ name, emoji, color, description:description||null, created_by: userId })
     .select()
     .single();
   if (error) throw error;
+  if(photoFile){
+    const ext=photoFile.name.split(".").pop()||"jpg";const path=`groups/${data.id}-${Date.now()}.${ext}`;
+    const {error:uploadError}=await db.storage.from("plan-media").upload(path,photoFile);if(uploadError)throw uploadError;
+    const photo_url=db.storage.from("plan-media").getPublicUrl(path).data.publicUrl;
+    const {error:updateError}=await db.from("groups").update({photo_url}).eq("id",data.id);if(updateError)throw updateError;
+  }
   return data;
 }
 

@@ -8,7 +8,10 @@
   "theme_color": "#0a0a0c",
   "orientation": "portrait",
   "icons": [
+    { "src": "/planardo-mark-64.png", "sizes": "64x64", "type": "image/png", "purpose": "any" },
+    { "src": "/planardo-mark-128.png", "sizes": "128x128", "type": "image/png", "purpose": "any" },
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/planardo-mark-256.png", "sizes": "256x256", "type": "image/png", "purpose": "any" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }

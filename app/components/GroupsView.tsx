@@ -26,6 +26,8 @@ export default function GroupsView({
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState(EMOJIS[0]);
   const [color, setColor] = useState(COLORS[0]);
+  const [description,setDescription]=useState("");
+  const [photo,setPhoto]=useState<File>();
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
 
@@ -39,11 +41,13 @@ export default function GroupsView({
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await createGroup(name.trim(), emoji, color);
+      await createGroup(name.trim(), emoji, color, description.trim(), photo);
       setCreateOpen(false);
       setName("");
       setEmoji(EMOJIS[0]);
       setColor(COLORS[0]);
+      setDescription("");
+      setPhoto(undefined);
       onRefresh();
       showToast("Grupo creado 🎉");
     } catch (err) {
@@ -96,17 +100,16 @@ export default function GroupsView({
           {groups.map((g) => (
             <div className="group-card edge" key={g.id}>
               <div className="group-card-top">
-                <span className="group-emoji" style={{ background: g.color }}>
-                  {g.emoji}
-                </span>
+                {g.photo_url?<img className="group-photo" src={g.photo_url} alt=""/>:<span className="group-emoji" style={{ background: g.color }}>{g.emoji}</span>}
                 <button className="group-invite" onClick={() => handleInvite(g.id)}>
                   <LinkIcon size={14} /> Invitar
                 </button>
               </div>
               <h3>{g.name}</h3>
+              {g.description&&<p className="group-description">{g.description}</p>}
               <div className="group-members">
                 {g.members.slice(0, 6).map((m) => (
-                  <Avatar key={m.id} initials={initialsOf(m.name)} color={m.avatar_color} small />
+                  <Avatar key={m.id} initials={initialsOf(m.name)} color={m.avatar_color} src={m.avatar_url} small />
                 ))}
                 <span className="group-count">
                   <Users size={12} /> {g.members.length} {g.members.length === 1 ? "persona" : "personas"}
@@ -157,6 +160,8 @@ export default function GroupsView({
                     onChange={(e) => setName(e.target.value)}
                   />
                 </label>
+                <label className="field"><span>Descripción</span><input value={description} onChange={e=>setDescription(e.target.value)} placeholder="¿Quiénes forman este grupo?"/></label>
+                <label className="field"><span>Foto del grupo (opcional)</span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>setPhoto(e.target.files?.[0])}/></label>
                 <div className="color-select">
                   <span>Emoji</span>
                   <div>

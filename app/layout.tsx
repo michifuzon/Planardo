@@ -13,6 +13,14 @@ export const metadata: Metadata = {
   title,
   description,
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/planardo-mark-64.png", sizes: "64x64", type: "image/png" },
+      { url: "/planardo-mark-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/planardo-mark-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/planardo-mark-180.png", sizes: "180x180", type: "image/png" }],
+  },
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Planardo" },
   openGraph: {
     title,
