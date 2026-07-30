@@ -68,12 +68,7 @@ export default function LoginScreen() {
       <div className="auth-grain" />
 
       <div className="auth-card edge">
-        <div className="auth-mark">
-          <span className="orbit-dot dot-1" />
-          <span className="orbit-dot dot-2" />
-          <span className="orbit-dot dot-3" />
-          <span className="orbit-core" />
-        </div>
+        <img src="/planardo-mark-256.png" alt="Planardo" className="auth-mark" />
 
         <AnimatePresence mode="wait">
           {status !== "confirm-sent" ? (

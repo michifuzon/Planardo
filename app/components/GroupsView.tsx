@@ -46,8 +46,10 @@ export default function GroupsView({
       setColor(COLORS[0]);
       onRefresh();
       showToast("Grupo creado 🎉");
-    } catch {
-      showToast("No se pudo crear el grupo. Probá de nuevo.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("createGroup failed:", err);
+      showToast(`No se pudo crear el grupo: ${msg}`);
     } finally {
       setSaving(false);
     }

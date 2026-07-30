@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Bell, CalendarDays, Check, ChevronLeft, ChevronRight,
-  Clock3, Compass, Home, LogOut, MapPin, Moon, Plus, Sparkles, Sun, Users, X
+  Clock3, Home, LogOut, MapPin, Moon, Plus, Sparkles, Sun, Users, X
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./components/AuthProvider";
@@ -15,12 +15,7 @@ import GroupsView from "./components/GroupsView";
 function Brand() {
   return (
     <div className="brand">
-      <span className="brand-mark">
-        <i className="m-core" />
-        <i className="m-dot" />
-        <i className="m-dot" />
-        <i className="m-dot" />
-      </span>
+      <img src="/planardo-mark-128.png" alt="" className="brand-mark" />
       <span>PLANARDO</span>
     </div>
   );
@@ -34,7 +29,6 @@ const NAV_ITEMS: [string, typeof Home, string][] = [
   ["home", Home, "Inicio"],
   ["calendar", CalendarDays, "Calendario"],
   ["groups", Users, "Grupos"],
-  ["search", Compass, "Explorar"],
 ];
 
 export default function Page() {
@@ -231,19 +225,6 @@ export default function Page() {
             <GroupsView groups={groups} loading={groupsLoading} onRefresh={refreshGroups} />
           )}
 
-          {active === "search" && (
-            <>
-              <div className="greeting">
-                <div><p className="eyebrow">EXPLORAR</p><h1>Muy pronto <span>🧭</span></h1><p>Acá vas a poder descubrir planes públicos cerca tuyo.</p></div>
-              </div>
-              <div className="empty-state edge">
-                <span className="empty-emoji">🧭</span>
-                <h3>Todavía estamos armando esto</h3>
-                <p>Por ahora, la forma de sumar gente es creando un grupo e invitando por link.</p>
-              </div>
-            </>
-          )}
-
           {active === "profile" && (
             <>
               <div className="greeting">
@@ -262,7 +243,7 @@ export default function Page() {
 
       <button className="fab" onClick={()=>setModal(true)} aria-label="Crear Planardo"><Plus/></button>
       <nav className="bottom-nav">
-        {NAV_ITEMS.filter(([id]) => id !== "search").map(([id,Icon,label])=><button key={id} className={active===id?"active":""} onClick={()=>setActive(id)}><Icon size={20}/><span>{label}</span></button>)}
+        {NAV_ITEMS.map(([id,Icon,label])=><button key={id} className={active===id?"active":""} onClick={()=>setActive(id)}><Icon size={20}/><span>{label}</span></button>)}
         <button onClick={()=>setActive("profile")} className={active==="profile"?"active":""}><span className="nav-avatar">{initials}</span><span>Perfil</span></button>
       </nav>
 
