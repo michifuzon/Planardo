@@ -57,7 +57,7 @@ export async function fetchMyPlans() {
   for(const row of (data||[]) as any[]){
     if(row.plans?.id)unique.set(row.plans.id,{...row.plans,my_response:row.response});
   }
-  return Array.from(unique.values());
+  return Array.from(unique.values()).filter(plan=>plan.status!=="cancelled");
 }
 
 export async function fetchPlanDetail(id: string) {
@@ -110,15 +110,14 @@ export async function addExpense(planId:string,label:string,amount:number){
   const {error}=await db.from("plan_expenses").insert({plan_id:planId,label,amount,paid_by:auth.user?.id}); if(error)throw error;
 }
 export async function addPoll(planId:string,question:string,options:string[]){
-  const db=client(); const {data:auth}=await db.auth.getUser();
-  const {data,error}=await db.from("polls").insert({plan_id:planId,question,created_by:auth.user?.id}).select().single();
-  if(error)throw error;
-  const {error:optionError}=await db.from("poll_options").insert(options.filter(Boolean).map((label,position)=>({poll_id:data.id,label,position})));
-  if(optionError)throw optionError;
+  const {data,error}=await client().rpc("create_poll",{target_plan:planId,poll_question:question,option_labels:options});
+  if(error)throw error;return data;
 }
 export async function votePoll(optionId:string){
-  const db=client(); const {data:auth}=await db.auth.getUser();
-  const {error}=await db.from("poll_votes").upsert({option_id:optionId,user_id:auth.user?.id}); if(error)throw error;
+  const {error}=await client().rpc("vote_poll",{target_option:optionId});if(error)throw error;
+}
+export async function deletePoll(pollId:string){
+  const {error}=await client().rpc("delete_poll",{target_poll:pollId});if(error)throw error;
 }
 export async function sendPlanMessage(planId:string,body:string){
   const db=client(); const {data:auth}=await db.auth.getUser();
@@ -141,5 +140,9 @@ export async function addPlanComment(planId:string,body:string){
 }
 export async function deletePlan(planId:string){
   const {data,error}=await client().rpc("delete_plan",{target_plan:planId});
+  if(error)throw error;return Boolean(data);
+}
+export async function cancelPlan(planId:string){
+  const {data,error}=await client().rpc("cancel_plan",{target_plan:planId});
   if(error)throw error;return Boolean(data);
 }

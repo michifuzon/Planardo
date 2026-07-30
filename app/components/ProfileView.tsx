@@ -42,10 +42,27 @@ export default function ProfileView({ fallbackName, email, groupCount, friendCou
     }
   }
 
-  function pickAvatar(next?: File) {
+  async function pickAvatar(next?: File) {
     if (!next) return;
     setFile(next);
     setPreview(URL.createObjectURL(next));
+    if (!username || !name.trim()) return;
+    setStatus("saving");
+    setMessage("Subiendo foto…");
+    try {
+      const updated=await updateMyProfile({name:name.trim(),username,bio:bio.trim(),avatarFile:next});
+      setProfile(updated);
+      setPreview(updated.avatar_url||"");
+      setFile(undefined);
+      setStatus("saved");
+      setMessage("Foto actualizada");
+      onChanged?.(updated);
+      window.setTimeout(()=>{setStatus("idle");setMessage("")},2200);
+    } catch(error) {
+      const raw=error as {message?:string};
+      setStatus("error");
+      setMessage(raw?.message||"No se pudo subir la foto.");
+    }
   }
 
   return (
@@ -57,7 +74,7 @@ export default function ProfileView({ fallbackName, email, groupCount, friendCou
             <Avatar initials={name.slice(0,2).toUpperCase()} color="#8b5cf6" src={preview || profile?.avatar_url}/>
             <span className="profile-camera"><Camera size={15}/></span>
           </button>
-          <input ref={inputRef} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(e)=>pickAvatar(e.target.files?.[0])}/>
+          <input ref={inputRef} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(e)=>void pickAvatar(e.target.files?.[0])}/>
           <div><h2>{name || fallbackName}</h2><p>@{username || "tu_username"} · {email}</p></div>
           <div className="profile-stats"><span><b>{stats.groups}</b> grupos</span><span><b>{stats.friends}</b> amigos</span></div>
         </div>
