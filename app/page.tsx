@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./components/AuthProvider";
-import { supabaseEnabled } from "@/lib/supabase";
+import { supabase, supabaseEnabled } from "@/lib/supabase";
 import { fetchMyGroups, type Group, type Profile } from "@/lib/groups";
 import Avatar from "./components/Avatar";
 import GroupsView from "./components/GroupsView";
@@ -87,6 +87,16 @@ export default function Page() {
     if (user && supabaseEnabled) fetchMyPlans().then(setPlans).catch(()=>setPlans([]));
   }, [user]);
   useEffect(()=>{if(user&&supabaseEnabled)fetchMyProfile().then(setMyProfile).catch(()=>setMyProfile(null))},[user]);
+  useEffect(()=>{
+    if(!user||!supabase)return;
+    const db=supabase;
+    const channel=db.channel("profile-photo-sync")
+      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"profiles"},payload=>{
+        if(payload.new.id===user.id)fetchMyProfile().then(setMyProfile).catch(()=>{});
+        refreshGroups();
+      }).subscribe();
+    return()=>{void db.removeChannel(channel)};
+  },[user,refreshGroups]);
   useEffect(()=>{if(user&&supabaseEnabled)fetchNotifications().then(setNotifications).catch(()=>setNotifications([]))},[user]);
   useEffect(()=>{
     if(selectedPlan)window.scrollTo({top:0,left:0,behavior:"auto"});
@@ -148,7 +158,7 @@ export default function Page() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <button className="profile" onClick={() => {setActive("profile");setSelectedPlan(null)}}><Avatar initials={initials} color="linear-gradient(135deg,#8b5cf6,#ec4899)"/><span><b>{name}</b><small>Mi perfil</small></span></button>
+          <button className="profile" onClick={() => {setActive("profile");setSelectedPlan(null)}}><Avatar initials={initials} color="linear-gradient(135deg,#8b5cf6,#ec4899)" src={myProfile?.avatar_url}/><span><b>{name}</b><small>Mi perfil</small></span></button>
           {supabaseEnabled && (
             <button className="profile" onClick={() => signOut()}><span className="signout-icon"><LogOut size={16}/></span><span><b>Salir</b><small>Cerrar sesión</small></span></button>
           )}
@@ -167,7 +177,7 @@ export default function Page() {
                 setNotifications(n=>n.map(x=>({...x,read_at:x.read_at||new Date().toISOString()})));
               }
             }}><Bell size={19}/>{notifications.some(n=>!n.read_at)&&<i/>}</button>
-            <button className="top-profile-button" onClick={()=>{setActive("profile");setSelectedPlan(null)}} aria-label="Abrir mi perfil"><Avatar initials={initials} color="linear-gradient(135deg,#8b5cf6,#ec4899)"/></button>
+            <button className="top-profile-button" onClick={()=>{setActive("profile");setSelectedPlan(null)}} aria-label="Abrir mi perfil"><Avatar initials={initials} color="linear-gradient(135deg,#8b5cf6,#ec4899)" src={myProfile?.avatar_url}/></button>
           </div>
           <AnimatePresence>{notificationsOpen&&<motion.div className="notifications-panel edge" initial={{opacity:0,y:-6,scale:.98}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-5}}><div className="notifications-head"><div><p className="eyebrow">ACTIVIDAD</p><h3>Notificaciones</h3></div><button onClick={()=>setNotificationsOpen(false)}><X/></button></div>{notifications.length?notifications.map(n=><button className="notification-row" key={n.id} onClick={()=>{if(n.type==="friend_request")setActive("friends");else if(n.plan_id)setSelectedPlan(n.plan_id);setNotificationsOpen(false)}}><span>{n.type==="attendance"?"✓":n.type==="poll"?"◉":n.type==="location"?"⌖":n.type==="friend_request"?"👋":"•"}</span><div><b>{n.title}</b>{n.body&&<p>{n.body}</p>}<small>{new Date(n.created_at).toLocaleString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</small></div></button>):<div className="notifications-empty"><p>Todo tranquilo por acá.</p></div>}</motion.div>}</AnimatePresence>
         </header>
@@ -328,7 +338,7 @@ export default function Page() {
       <button className="fab" onClick={()=>setModal(true)} aria-label="Crear Planardo"><Plus/></button>
       <nav className="bottom-nav">
         {NAV_ITEMS.map(([id,Icon,label])=><button key={id} className={active===id?"active":""} onClick={()=>{setActive(id);setSelectedPlan(null)}}><Icon size={20}/><span>{label}</span></button>)}
-        <button onClick={()=>setActive("profile")} className={active==="profile"?"active":""}><span className="nav-avatar">{initials}</span><span>Perfil</span></button>
+        <button onClick={()=>{setActive("profile");setSelectedPlan(null)}} className={active==="profile"?"active":""}><Avatar initials={initials} color="linear-gradient(135deg,#8b5cf6,#ec4899)" src={myProfile?.avatar_url} small/><span>Perfil</span></button>
       </nav>
 
       <AnimatePresence>

@@ -3,6 +3,7 @@
 import { Camera, Check, LoaderCircle, Save } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { fetchMyProfile, fetchMyStats, updateMyProfile, usernameAvailable, type FullProfile } from "@/lib/profiles";
+import AvatarCropper from "./AvatarCropper";
 
 export default function ProfileView({ fallbackName, email, groupCount, friendCount, onChanged }: {
   fallbackName: string; email?: string; groupCount: number; friendCount: number; onChanged?: (profile: FullProfile) => void;
@@ -17,6 +18,7 @@ export default function ProfileView({ fallbackName, email, groupCount, friendCou
   const [message, setMessage] = useState("");
   const [stats,setStats]=useState({groups:groupCount,friends:friendCount});
   const inputRef = useRef<HTMLInputElement>(null);
+  const [cropSource,setCropSource]=useState<File>();
 
   useEffect(() => {
     fetchMyProfile().then((p) => {
@@ -41,8 +43,7 @@ export default function ProfileView({ fallbackName, email, groupCount, friendCou
     }
   }
 
-  async function pickAvatar(next?: File) {
-    if (!next) return;
+  async function saveAvatar(next: File) {
     setFile(next);
     setPreview(URL.createObjectURL(next));
     if (!username || !name.trim()) return;
@@ -77,7 +78,7 @@ export default function ProfileView({ fallbackName, email, groupCount, friendCou
             </span>
             <span className="profile-camera"><Camera size={15}/></span>
           </button>
-          <input ref={inputRef} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(e)=>void pickAvatar(e.target.files?.[0])}/>
+          <input ref={inputRef} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(e)=>{const selected=e.target.files?.[0];if(selected)setCropSource(selected);e.currentTarget.value="";}}/>
           <div><h2>{name || fallbackName}</h2><p>@{username || "tu_username"} · {email}</p></div>
           <div className="profile-stats"><span><b>{stats.groups}</b> grupos</span><span><b>{stats.friends}</b> amigos</span></div>
         </div>
@@ -91,6 +92,7 @@ export default function ProfileView({ fallbackName, email, groupCount, friendCou
           {status==="saving"?<><LoaderCircle className="auth-spin" size={17}/> Guardando…</>:<><Save size={17}/> Guardar perfil</>}
         </button>
       </form>
+      {cropSource&&<AvatarCropper file={cropSource} onCancel={()=>setCropSource(undefined)} onConfirm={file=>{setCropSource(undefined);void saveAvatar(file)}}/>}
     </section>
   );
 }
