@@ -1,0 +1,93 @@
+import { supabase } from "./supabase";
+
+export type Profile = {
+  id: string;
+  name: string;
+  avatar_color: string;
+};
+
+export type Group = {
+  id: string;
+  name: string;
+  emoji: string;
+  color: string;
+  created_by: string;
+  members: Profile[];
+};
+
+function client() {
+  if (!supabase) throw new Error("Supabase no está configurado");
+  return supabase;
+}
+
+export async function fetchMyGroups(): Promise<Group[]> {
+  const db = client();
+  const { data: memberships, error } = await db
+    .from("group_members")
+    .select("group_id, groups(id, name, emoji, color, created_by)");
+  if (error) throw error;
+
+  const groups = (memberships || [])
+    .map((m: any) => m.groups)
+    .filter(Boolean) as Omit<Group, "members">[];
+  if (groups.length === 0) return [];
+
+  const groupIds = groups.map((g) => g.id);
+  const { data: allMembers, error: membersError } = await db
+    .from("group_members")
+    .select("group_id, profiles(id, name, avatar_color)")
+    .in("group_id", groupIds);
+  if (membersError) throw membersError;
+
+  return groups.map((g) => ({
+    ...g,
+    members: (allMembers || [])
+      .filter((m: any) => m.group_id === g.id)
+      .map((m: any) => m.profiles)
+      .filter(Boolean),
+  }));
+}
+
+export async function createGroup(name: string, emoji: string, color: string) {
+  const db = client();
+  const { data: userData } = await db.auth.getUser();
+  const userId = userData.user?.id;
+  if (!userId) throw new Error("No hay sesión activa");
+
+  const { data, error } = await db
+    .from("groups")
+    .insert({ name, emoji, color, created_by: userId })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function createInvite(groupId: string) {
+  const db = client();
+  const { data: userData } = await db.auth.getUser();
+  const userId = userData.user?.id;
+  if (!userId) throw new Error("No hay sesión activa");
+
+  const { data, error } = await db
+    .from("group_invites")
+    .insert({ group_id: groupId, created_by: userId })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as { code: string; group_name: string; group_emoji: string; group_color: string };
+}
+
+export async function fetchInvite(code: string) {
+  const db = client();
+  const { data, error } = await db.from("group_invites").select("*").eq("code", code).maybeSingle();
+  if (error) throw error;
+  return data as { code: string; group_id: string; group_name: string; group_emoji: string; group_color: string } | null;
+}
+
+export async function joinGroupWithInvite(code: string) {
+  const db = client();
+  const { data, error } = await db.rpc("join_group_with_invite", { invite_code: code });
+  if (error) throw error;
+  return data as string;
+}

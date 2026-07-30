@@ -67,7 +67,7 @@ export default function LoginScreen() {
       <div className="auth-blob blob-c" />
       <div className="auth-grain" />
 
-      <div className="auth-card">
+      <div className="auth-card edge">
         <div className="auth-mark">
           <span className="orbit-dot dot-1" />
           <span className="orbit-dot dot-2" />
