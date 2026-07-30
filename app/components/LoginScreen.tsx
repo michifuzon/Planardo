@@ -40,7 +40,7 @@ export default function LoginScreen() {
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
-        options: { emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined },
+        options: { emailRedirectTo: typeof window !== "undefined" ? window.location.href : undefined },
       });
       if (error) {
         setErrorMsg(errorMessages[error.message] || error.message);
