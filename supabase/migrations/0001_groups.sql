@@ -1,5 +1,8 @@
 -- PLANARDO: perfiles, grupos, miembros e invitaciones por link
 -- Correr una sola vez en Supabase Dashboard -> SQL Editor -> New query -> Run
+-- (todo el archivo, en una sola ejecución)
+
+set role postgres;
 
 create extension if not exists pgcrypto;
 
