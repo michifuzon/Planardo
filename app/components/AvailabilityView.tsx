@@ -16,7 +16,7 @@ export default function AvailabilityView(){
   const best=[...counts].sort((a,b)=>(b.available.length+b.maybe.length*.5)-(a.available.length+a.maybe.length*.5))[0];
   async function choose(day:string,status:"available"|"maybe"|"busy"){await setAvailability(day,status);load()}
   return <section className="availability-smart">
-    <div className="best-date edge"><span><Sparkles/></span><div><p className="eyebrow">MEJOR FECHA AUTOMÁTICA</p><h2>{best.available.length?`${best.date.toLocaleDateString("es-AR",{weekday:"long",day:"numeric"})} es el mejor día`:"Marcá cuándo podés"}</h2><p>{best.available.length?`${best.available.length} personas disponibles${best.maybe.length?` · ${best.maybe.length} tal vez`:""}`:"Cuando tu grupo responda, PLANARDO destacará la mejor coincidencia."}</p></div></div>
+    <div className="best-date edge"><span><Sparkles/></span><div><p className="eyebrow">MEJOR FECHA AUTOMÁTICA</p><h2>{best.available.length?`${best.date.toLocaleDateString("es-AR",{weekday:"long",day:"numeric"})}: el mejor día`:"Marcá cuándo podés"}</h2><p>{best.available.length?`${best.available.length} ${best.available.length===1?"persona disponible":"personas disponibles"}${best.maybe.length?` · ${best.maybe.length} tal vez`:""}`:"Cuando tu grupo responda, PLANARDO destacará la mejor coincidencia."}</p></div></div>
     <div className="availability-week">{counts.map((x,i)=><article className={`availability-day-card edge ${iso(x.date)===iso(best.date)&&best.available.length?"best":""}`} key={iso(x.date)}>
       {iso(x.date)===iso(best.date)&&best.available.length>0&&<span className="best-badge"><Check/> MEJOR</span>}
       <time><small>{i===0?"HOY":x.date.toLocaleDateString("es-AR",{weekday:"short"}).toUpperCase()}</small><b>{x.date.getDate()}</b></time>

@@ -63,16 +63,14 @@ export async function createGroup(name: string, emoji: string, color: string, de
   const userId = userData.user?.id;
   if (!userId) throw new Error("No hay sesión activa");
 
-  const { data, error } = await db
-    .from("groups")
-    .insert({ name, emoji, color, created_by: userId })
-    .select()
-    .single();
+  const { data, error } = await db.rpc("create_group", {
+    group_name: name,
+    group_emoji: emoji,
+    group_color: color,
+    group_description: description || null,
+  });
   if (error) throw error;
-  if (description) {
-    const { error: descriptionError } = await db.from("groups").update({ description }).eq("id", data.id);
-    if (descriptionError && descriptionError.code !== "42703" && descriptionError.code !== "PGRST204") throw descriptionError;
-  }
+  if (!data?.id) throw new Error("Supabase no devolvió el grupo creado.");
   if(photoFile){
     const ext=photoFile.name.split(".").pop()||"jpg";const path=`groups/${data.id}-${Date.now()}.${ext}`;
     const {error:uploadError}=await db.storage.from("plan-media").upload(path,photoFile);if(uploadError)throw uploadError;

@@ -17,6 +17,7 @@ import PlanDetail from "./components/PlanDetail";
 import AvailabilityView from "./components/AvailabilityView";
 import { createPlan, fetchMyPlans } from "@/lib/plans";
 import { fetchNotifications, markNotificationsRead } from "@/lib/notifications";
+import { fetchMyProfile, type FullProfile } from "@/lib/profiles";
 
 function Brand() {
   return (
@@ -44,7 +45,9 @@ export default function Page() {
   const [active, setActive] = useState("home");
   const [modal, setModal] = useState(false);
   const [light, setLight] = useState(false);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [calendarMonth,setCalendarMonth]=useState(()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),1)});
+  const [myProfile,setMyProfile]=useState<FullProfile|null>(null);
   const [toast, setToast] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupsLoading, setGroupsLoading] = useState(true);
@@ -82,9 +85,19 @@ export default function Page() {
   useEffect(() => {
     if (user && supabaseEnabled) fetchMyPlans().then(setPlans).catch(()=>setPlans([]));
   }, [user]);
+  useEffect(()=>{if(user&&supabaseEnabled)fetchMyProfile().then(setMyProfile).catch(()=>setMyProfile(null))},[user]);
   useEffect(()=>{if(user&&supabaseEnabled)fetchNotifications().then(setNotifications).catch(()=>setNotifications([]))},[user]);
 
-  const days = useMemo(() => Array.from({ length: 35 }, (_, i) => (i < 2 || i > 31 ? null : i - 1)), []);
+  const days = useMemo(() => {
+    const year=calendarMonth.getFullYear(),month=calendarMonth.getMonth();
+    const count=new Date(year,month+1,0).getDate();
+    const offset=(new Date(year,month,1).getDay()+6)%7;
+    const cells=Math.ceil((offset+count)/7)*7;
+    return Array.from({length:cells},(_,i)=>{
+      const day=i-offset+1;
+      return day>=1&&day<=count?new Date(year,month,day):null;
+    });
+  },[calendarMonth]);
 
   const savePlan = async () => {
     if (!planForm.name.trim() || !planForm.date || planSaving) return;
@@ -104,7 +117,7 @@ export default function Page() {
     }
   };
 
-  const rawName = (user?.user_metadata?.name as string | undefined) || user?.email?.split("@")[0] || "vos";
+  const rawName = myProfile?.name || (user?.user_metadata?.name as string | undefined) || user?.email?.split("@")[0] || "vos";
   const name = rawName.charAt(0).toUpperCase() + rawName.slice(1);
   const initials = initialsOf(name);
   const hour = new Date().getHours();
@@ -251,14 +264,14 @@ export default function Page() {
               <section className="calendar-section">
                 <div className="calendar-card edge">
                   <div className="calendar-header">
-                    <div><p className="eyebrow">AGOSTO</p><h2>2026</h2></div>
-                    <div className="calendar-nav"><button><ChevronLeft/></button><button><ChevronRight/></button></div>
+                    <div><p className="eyebrow">{calendarMonth.toLocaleDateString("es-AR",{month:"long"}).toUpperCase()}</p><h2>{calendarMonth.getFullYear()}</h2></div>
+                    <div className="calendar-nav"><button onClick={()=>setCalendarMonth(d=>new Date(d.getFullYear(),d.getMonth()-1,1))}><ChevronLeft/></button><button onClick={()=>setCalendarMonth(d=>new Date(d.getFullYear(),d.getMonth()+1,1))}><ChevronRight/></button></div>
                   </div>
                   <div className="weekdays">{["LUN","MAR","MIÉ","JUE","VIE","SÁB","DOM"].map(d=><span key={d}>{d}</span>)}</div>
                   <div className="calendar-grid">
                     {days.map((day,i) => day === null ? <div className="day muted" key={i}/> :
-                      <button key={i} onClick={() => setSelectedDay(day)} className={`day ${selectedDay===day?"selected":""} ${day===30?"today":""}`}>
-                        <span className="day-number">{day}</span>
+                      <button key={i} onClick={() => setSelectedDay(day)} className={`day ${selectedDay?.toDateString()===day.toDateString()?"selected":""} ${day.toDateString()===new Date().toDateString()?"today":""}`}>
+                        <span className="day-number">{day.getDate()}</span>
                       </button>
                     )}
                   </div>
@@ -266,7 +279,7 @@ export default function Page() {
                 <aside className="day-detail edge">
                   {selectedDay ? (
                     <>
-                      <div className="day-detail-head"><div><p className="eyebrow">AGOSTO</p><h3>{selectedDay} de agosto</h3></div><button onClick={() => setSelectedDay(null)}><X size={18}/></button></div>
+                      <div className="day-detail-head"><div><p className="eyebrow">{selectedDay.toLocaleDateString("es-AR",{weekday:"long"}).toUpperCase()}</p><h3>{selectedDay.toLocaleDateString("es-AR",{day:"numeric",month:"long"})}</h3></div><button onClick={() => setSelectedDay(null)}><X size={18}/></button></div>
                       <p className="availability-note">La disponibilidad del grupo para este día todavía no está conectada — ¡se viene pronto!</p>
                     </>
                   ) : (
@@ -289,7 +302,7 @@ export default function Page() {
           </>}
 
           {active === "profile" && (
-            <ProfileView fallbackName={name} email={user?.email} groupCount={groups.length} friendCount={friends.length}/>
+            <ProfileView fallbackName={name} email={user?.email} groupCount={groups.length} friendCount={friends.length} onChanged={setMyProfile}/>
           )}
           </>}
         </div>
@@ -297,7 +310,7 @@ export default function Page() {
 
       <button className="fab" onClick={()=>setModal(true)} aria-label="Crear Planardo"><Plus/></button>
       <nav className="bottom-nav">
-        {NAV_ITEMS.filter(([id])=>["home","calendar","groups"].includes(id)).map(([id,Icon,label])=><button key={id} className={active===id?"active":""} onClick={()=>setActive(id)}><Icon size={20}/><span>{label}</span></button>)}
+        {NAV_ITEMS.map(([id,Icon,label])=><button key={id} className={active===id?"active":""} onClick={()=>{setActive(id);setSelectedPlan(null)}}><Icon size={20}/><span>{label}</span></button>)}
         <button onClick={()=>setActive("profile")} className={active==="profile"?"active":""}><span className="nav-avatar">{initials}</span><span>Perfil</span></button>
       </nav>
 
