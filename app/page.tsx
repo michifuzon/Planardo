@@ -57,6 +57,7 @@ export default function Page() {
   const [notificationsOpen,setNotificationsOpen]=useState(false);
   const [planSaving, setPlanSaving] = useState(false);
   const [planCover,setPlanCover]=useState<File>();
+  const [planCreationKey,setPlanCreationKey]=useState(()=>crypto.randomUUID());
   const [planForm, setPlanForm] = useState({
     name:"", emoji:"🎉", date:"", time:"21:00", end_date:"", end_time:"", place_name:"", location_url:"",
     description:"", notes:"", plan_type:"other", color:"#8b5cf6", group_id:"",
@@ -106,10 +107,11 @@ export default function Page() {
       const invitee_ids = planForm.group_id
         ? groups.find(g=>g.id===planForm.group_id)?.members.map(m=>m.id) || []
         : [];
-      await createPlan({ ...planForm, invitee_ids, cover_file:planCover });
+      await createPlan({ ...planForm, invitee_ids, cover_file:planCover, creation_key:planCreationKey });
       setModal(false); setToast(true);
       setPlanForm({name:"",emoji:"🎉",date:"",time:"21:00",end_date:"",end_time:"",place_name:"",location_url:"",description:"",notes:"",plan_type:"other",color:"#8b5cf6",group_id:""});
       setPlanCover(undefined);
+      setPlanCreationKey(crypto.randomUUID());
       setPlans(await fetchMyPlans());
       window.setTimeout(() => setToast(false), 3200);
     } finally {
@@ -168,7 +170,7 @@ export default function Page() {
         </header>
 
         <div className="page-content">
-          {selectedPlan && <PlanDetail id={selectedPlan} onBack={()=>setSelectedPlan(null)}/>}
+          {selectedPlan && <PlanDetail id={selectedPlan} onBack={()=>setSelectedPlan(null)} onDeleted={()=>fetchMyPlans().then(setPlans)}/>}
           {!selectedPlan && <>
           {active === "home" && (
             <>

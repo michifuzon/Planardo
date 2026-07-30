@@ -5,6 +5,7 @@ export type PlanInput = {
   end_date?: string; end_time?: string; description?: string; color: string; group_id?: string;
   invitee_ids?: string[]; plan_type?: string; location_url?: string; notes?: string;
   cover_file?: File;
+  creation_key?: string;
 };
 
 function client() {
@@ -18,12 +19,16 @@ export async function createPlan(input: PlanInput) {
   if (!auth.user) throw new Error("No hay sesión activa");
   const starts_at = new Date(`${input.date}T${input.time}:00`).toISOString();
   const ends_at = input.end_date ? new Date(`${input.end_date}T${input.end_time || input.time}:00`).toISOString() : null;
-  const { data, error } = await db.from("plans").insert({
+  const payload = {
     created_by: auth.user.id, group_id: input.group_id || null, name: input.name,
     emoji: input.emoji, starts_at, ends_at, place_name: input.place_name || null,
     description: input.description || null, color: input.color,
     plan_type: input.plan_type || "other", location_url: input.location_url || null, notes: input.notes || null,
-  }).select().single();
+    creation_key: input.creation_key || undefined,
+  };
+  const { data, error } = input.creation_key
+    ? await db.from("plans").upsert(payload,{onConflict:"creation_key"}).select().single()
+    : await db.from("plans").insert(payload).select().single();
   if (error) throw error;
   if(input.cover_file){
     const ext=input.cover_file.name.split(".").pop()||"jpg";
@@ -48,7 +53,11 @@ export async function fetchMyPlans() {
     .select("response, plans(*, plan_members(response,user_id,profiles(id,name,username,avatar_color,avatar_url)))")
     .order("created_at", { referencedTable: "plans", ascending: true });
   if (error) throw error;
-  return (data || []).map((row: any) => ({ ...row.plans, my_response: row.response })).filter(Boolean);
+  const unique=new Map<string,any>();
+  for(const row of (data||[]) as any[]){
+    if(row.plans?.id)unique.set(row.plans.id,{...row.plans,my_response:row.response});
+  }
+  return Array.from(unique.values());
 }
 
 export async function fetchPlanDetail(id: string) {
@@ -129,4 +138,8 @@ export async function uploadPlanPhoto(planId:string,file:File){
 export async function addPlanComment(planId:string,body:string){
   const db=client();const {data:auth}=await db.auth.getUser();
   const {error}=await db.from("plan_comments").insert({plan_id:planId,user_id:auth.user?.id,body});if(error)throw error;
+}
+export async function deletePlan(planId:string){
+  const {data,error}=await client().rpc("delete_plan",{target_plan:planId});
+  if(error)throw error;return Boolean(data);
 }

@@ -1,13 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, CalendarDays, Car, Check, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, ExternalLink, ImagePlus, ListChecks, MapPin, MessageCircle, Plus, Send, Users, Vote, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, Car, Check, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, ExternalLink, ImagePlus, ListChecks, MapPin, MessageCircle, Plus, Send, Trash2, Users, Vote, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addChecklistItem, addExpense, addPlanItem, addPoll, addTimelineItem, claimPlanItem,
-  addPlanComment, fetchPlanDetail, respondToPlan, sendPlanMessage, setPlanTransport, toggleChecklistItem, uploadPlanPhoto, votePoll,
+  addPlanComment, deletePlan, fetchPlanDetail, respondToPlan, sendPlanMessage, setPlanTransport, toggleChecklistItem, uploadPlanPhoto, votePoll,
 } from "@/lib/plans";
 import Avatar from "./Avatar";
+import { useAuth } from "./AuthProvider";
 
 const TABS = [
   ["overview","Resumen",CalendarDays],["people","Invitados",Users],["organize","Organizar",ListChecks],
@@ -15,7 +16,8 @@ const TABS = [
 ] as const;
 const initials=(name:string)=>name.slice(0,2).toUpperCase();
 
-export default function PlanDetail({id,onBack}:{id:string;onBack:()=>void}) {
+export default function PlanDetail({id,onBack,onDeleted}:{id:string;onBack:()=>void;onDeleted?:()=>void}) {
+  const {user}=useAuth();
   const [plan,setPlan]=useState<any>(null);
   const [tab,setTab]=useState<string>("overview");
   const [loading,setLoading]=useState(true);
@@ -26,6 +28,7 @@ export default function PlanDetail({id,onBack}:{id:string;onBack:()=>void}) {
   const [comment,setComment]=useState("");
   const [conflicts,setConflicts]=useState<Array<{id:string;name:string;emoji:string;starts_at:string;ends_at:string|null}>>([]);
   const photoRef=useRef<HTMLInputElement>(null);
+  const [confirmDelete,setConfirmDelete]=useState(false);
   const load=useCallback(()=>{setLoading(true);fetchPlanDetail(id).then(setPlan).finally(()=>setLoading(false));},[id]);
   useEffect(()=>{load()},[load]);
 
@@ -58,7 +61,7 @@ export default function PlanDetail({id,onBack}:{id:string;onBack:()=>void}) {
     <button className="detail-back" onClick={onBack}><ArrowLeft size={17}/> Volver</button>
     <div className="plan-hero edge" style={{"--plan-color":plan.color} as React.CSSProperties}>
       {plan.cover_url&&<img className="plan-cover" src={plan.cover_url} alt=""/>}
-      <div className="plan-hero-top"><span className="plan-big-emoji">{plan.emoji}</span><span className="plan-type">{plan.plan_type||"Plan"}</span></div>
+      <div className="plan-hero-top"><span className="plan-big-emoji">{plan.emoji}</span><div className="plan-hero-actions"><span className="plan-type">{plan.plan_type||"Plan"}</span>{plan.created_by===user?.id&&<button onClick={()=>setConfirmDelete(true)} aria-label="Eliminar Planardo"><Trash2/></button>}</div></div>
       <div><p>{start.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"}).toUpperCase()}</p><h1>{plan.name}</h1><span className="hero-meta"><Clock3 size={15}/>{start.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}{end&&<> · {days>1?`${days} días · ${days-1} noches`:`hasta ${end.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}`}</>}</span>{plan.place_name&&<span className="hero-meta"><MapPin size={15}/>{plan.place_name}{plan.location_url&&<a href={plan.location_url} target="_blank"><ExternalLink size={13}/></a>}</span>}</div>
       <div className="hero-people"><div>{plan.plan_members.slice(0,6).map((m:any)=><Avatar key={m.user_id} initials={initials(m.profiles.name)} color={m.profiles.avatar_color} src={m.profiles.avatar_url}/>)}</div><span><b>{stats.going}</b> confirmados · {stats.pending} pendientes</span></div>
     </div>
@@ -84,5 +87,6 @@ export default function PlanDetail({id,onBack}:{id:string;onBack:()=>void}) {
 
     <AnimatePresence>{quick.open&&<motion.div className="modal-backdrop" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}><motion.div className="quick-modal edge" initial={{scale:.96,y:12}} animate={{scale:1,y:0}}><div className="modal-head"><div><p className="eyebrow">AGREGAR</p><h2>{quick.type==="check"?"Nueva tarea":quick.type==="item"?"¿Qué hay que llevar?":quick.type==="timeline"?"Actividad":quick.type==="expense"?"Nuevo gasto":"Nueva encuesta"}</h2></div><button onClick={()=>setQuick({type:"",open:false})}><X/></button></div><label className="quick-field"><span>{quick.type==="poll"?"Pregunta":"Nombre"}</span><input autoFocus value={field} onChange={e=>setField(e.target.value)}/></label>{["timeline","expense","poll"].includes(quick.type)&&<label className="quick-field"><span>{quick.type==="timeline"?"Fecha y hora":quick.type==="expense"?"Importe":"Opciones separadas por coma"}</span><input type={quick.type==="timeline"?"datetime-local":quick.type==="expense"?"number":"text"} value={field2} onChange={e=>setField2(e.target.value)}/></label>}<button className="create-submit" onClick={submitQuick}>Agregar <ChevronRight/></button></motion.div></motion.div>}</AnimatePresence>
     <AnimatePresence>{conflicts.length>0&&<motion.div className="modal-backdrop" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}><motion.div className="conflict-modal edge" initial={{scale:.96,y:12}} animate={{scale:1,y:0}}><span className="conflict-icon">!</span><h2>Ya tenés otro plan</h2><p>Para cuidar tu agenda, no podés confirmar dos Planardos superpuestos.</p>{conflicts.map(c=><div className="conflict-plan" key={c.id}><b>{c.emoji} {c.name}</b><small>{new Date(c.starts_at).toLocaleString("es-AR",{weekday:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}</small></div>)}<button className="create-submit" onClick={()=>setConflicts([])}>Entendido</button></motion.div></motion.div>}</AnimatePresence>
+    <AnimatePresence>{confirmDelete&&<motion.div className="modal-backdrop" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}><motion.div className="delete-group-modal edge" initial={{scale:.96,y:12}} animate={{scale:1,y:0}}><span><Trash2/></span><h2>¿Eliminar este Planardo?</h2><p>Se eliminarán sus respuestas, encuestas, mensajes, fotos y datos de organización. Esta acción no se puede deshacer.</p><div><button onClick={()=>setConfirmDelete(false)}>Cancelar</button><button className="danger" onClick={async()=>{await deletePlan(id);onDeleted?.();onBack()}}>Eliminar Planardo</button></div></motion.div></motion.div>}</AnimatePresence>
   </section>
 }
