@@ -3,7 +3,6 @@
 import { Camera, Check, LoaderCircle, Save } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { fetchMyProfile, fetchMyStats, updateMyProfile, usernameAvailable, type FullProfile } from "@/lib/profiles";
-import Avatar from "./Avatar";
 
 export default function ProfileView({ fallbackName, email, groupCount, friendCount, onChanged }: {
   fallbackName: string; email?: string; groupCount: number; friendCount: number; onChanged?: (profile: FullProfile) => void;
@@ -71,7 +70,11 @@ export default function ProfileView({ fallbackName, email, groupCount, friendCou
       <form className="profile-panel edge" onSubmit={save}>
         <div className="profile-hero">
           <button type="button" className="profile-photo" onClick={() => inputRef.current?.click()}>
-            <Avatar initials={name.slice(0,2).toUpperCase()} color="#8b5cf6" src={preview || profile?.avatar_url}/>
+            <span className="profile-avatar-frame">
+              {preview || profile?.avatar_url
+                ? <img src={preview || profile?.avatar_url || ""} alt="Foto de perfil"/>
+                : <b>{name.slice(0,2).toUpperCase()}</b>}
+            </span>
             <span className="profile-camera"><Camera size={15}/></span>
           </button>
           <input ref={inputRef} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(e)=>void pickAvatar(e.target.files?.[0])}/>

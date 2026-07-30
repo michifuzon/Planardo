@@ -88,6 +88,9 @@ export default function Page() {
   }, [user]);
   useEffect(()=>{if(user&&supabaseEnabled)fetchMyProfile().then(setMyProfile).catch(()=>setMyProfile(null))},[user]);
   useEffect(()=>{if(user&&supabaseEnabled)fetchNotifications().then(setNotifications).catch(()=>setNotifications([]))},[user]);
+  useEffect(()=>{
+    if(selectedPlan)window.scrollTo({top:0,left:0,behavior:"auto"});
+  },[selectedPlan]);
 
   const days = useMemo(() => {
     const year=calendarMonth.getFullYear(),month=calendarMonth.getMonth();
