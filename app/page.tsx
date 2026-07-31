@@ -87,7 +87,12 @@ export default function Page() {
     setGroupsLoading(true);
     fetchMyGroups()
       .then(g => { setGroups(g); setGroupsError(""); })
-      .catch((e) => { setGroups([]); setGroupsError(e instanceof Error ? e.message : "No se pudieron cargar tus grupos."); })
+      .catch((e) => {
+        setGroups([]);
+        const raw = e as { message?: string; error_description?: string; details?: string; hint?: string; code?: string };
+        const msg = raw?.message || raw?.error_description || raw?.details || raw?.hint || JSON.stringify(e);
+        setGroupsError(raw?.code ? `[${raw.code}] ${msg}` : msg);
+      })
       .finally(() => setGroupsLoading(false));
   }, []);
 
