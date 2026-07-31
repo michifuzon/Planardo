@@ -168,7 +168,7 @@ export default function GroupsView({
           <h2>Tus grupos</h2>
           <p>Cada grupo tiene su propio link de invitación</p>
         </div>
-        <button className="create-desktop" onClick={() => setCreateOpen(true)}>
+        <button className="group-create-btn" onClick={() => setCreateOpen(true)}>
           <Plus size={19} /> Crear grupo
         </button>
       </div>
@@ -210,10 +210,6 @@ export default function GroupsView({
           ))}
         </div>
       )}
-
-      <button className="fab" onClick={() => setCreateOpen(true)} aria-label="Crear grupo">
-        <Plus />
-      </button>
 
       <AnimatePresence>
         {createOpen && (

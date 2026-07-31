@@ -63,8 +63,6 @@ export default function Page() {
   const [availFrom, setAvailFrom] = useState("");
   const [availTo, setAvailTo] = useState("");
   const [availSaving, setAvailSaving] = useState(false);
-  const [availError, setAvailError] = useState("");
-  const showAvailError = (msg: string) => { setAvailError(msg); window.setTimeout(() => setAvailError(""), 3200); };
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [notifications,setNotifications]=useState<any[]>([]);
   const [notificationsOpen,setNotificationsOpen]=useState(false);
@@ -177,20 +175,10 @@ export default function Page() {
 
   async function addAvail() {
     if (!selectedDay || availSaving) return;
-    const isFullDay = !availFrom && !availTo;
-    if (!isFullDay) {
-      const duplicate = dayAvailability.some(b =>
-        b.status === availStatus && b.time_from === availFrom + ":00" && b.time_to === availTo + ":00"
-      );
-      if (duplicate) { showAvailError("Ya tenés un bloque igual en ese horario."); return; }
-    }
     setAvailSaving(true);
     try {
-      if (isFullDay) {
-        // "todo el día" es excluyente: reemplaza cualquier otro estado de día completo ya cargado.
-        const existingFullDay = dayAvailability.filter(b => !b.time_from && !b.time_to);
-        await Promise.all(existingFullDay.map(b => removeAvailabilityBlock(b.id)));
-      }
+      // Un solo estado por día: cargar uno nuevo siempre reemplaza los anteriores.
+      await Promise.all(dayAvailability.map(b => removeAvailabilityBlock(b.id)));
       await addAvailabilityBlock(dateKey(selectedDay), availStatus, availFrom || undefined, availTo || undefined);
       setAvailFrom(""); setAvailTo("");
       refreshMonthAvailability();
@@ -344,7 +332,7 @@ export default function Page() {
                 {plans.length ? <div className="event-track">{plans.slice(0,3).map((plan:any)=>{
                   const date=new Date(plan.starts_at);
                   return <article className="event-card" onClick={()=>setSelectedPlan(plan.id)} key={plan.id} style={{background:`linear-gradient(145deg,${plan.color},#21152f)`}}>
-                    <div className="event-top"><span className="event-emoji">{plan.emoji}</span><span className="event-status"><i/> {plan.my_response==="going"?"Voy":"Pendiente"}</span></div>
+                    <div className="event-top"><span className="event-emoji">{plan.emoji}</span><span className={`event-status ${plan.my_response}`}><i/> {plan.my_response==="going"?"Voy":plan.my_response==="maybe"?"Tal vez":plan.my_response==="declined"?"No puedo":"Pendiente"}</span></div>
                     <div className="event-main"><p>{date.toLocaleDateString("es-AR",{weekday:"long",day:"numeric"}).toUpperCase()} · {date.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}</p><h3>{plan.name}</h3>{plan.place_name&&<div className="place"><MapPin size={17}/>{plan.place_name}</div>}</div>
                     <div className="event-bottom"><span className="people-count">{plan.plan_members?.length || 1} invitados</span><button><ChevronRight/></button></div>
                   </article>
@@ -422,7 +410,7 @@ export default function Page() {
                             <button className="day-avail-add" onClick={addAvail} disabled={availSaving}><Plus size={15}/></button>
                           </div>
                         </div>
-                        {availError ? <p className="availability-note avail-error-note">{availError}</p> : <p className="availability-note">Dejá el horario vacío para marcar el día completo.</p>}
+                        <p className="availability-note">Dejá el horario vacío para marcar el día completo. Solo se guarda un estado por día.</p>
                       </div>
                     </>
                   ) : (
@@ -451,7 +439,7 @@ export default function Page() {
         </div>
       </section>
 
-      {active !== "groups" && <button className="fab" onClick={()=>setModal(true)} aria-label="Crear Planardo"><Plus/></button>}
+      <button className="fab" onClick={()=>setModal(true)} aria-label="Crear Planardo"><Plus/></button>
       <nav className="bottom-nav">
         {NAV_ITEMS.map(([id,Icon,label])=><button key={id} className={active===id?"active":""} onClick={()=>{setActive(id);setSelectedPlan(null)}}><Icon size={20}/><span>{label}</span></button>)}
       </nav>
