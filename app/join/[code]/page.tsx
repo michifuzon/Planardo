@@ -22,7 +22,7 @@ async function fetchInviteInfo(code: string) {
 export async function generateMetadata({ params }: { params: Promise<{ code: string }> }): Promise<Metadata> {
   const { code } = await params;
   const invite = await fetchInviteInfo(code);
-  const title = invite ? `Te invito al grupo ${invite.group_emoji} ${invite.group_name}` : "Te invitaron a un grupo en Planardo";
+  const title = invite ? `Te invito al grupo ${invite.group_name}` : "Te invitaron a un grupo en Planardo";
   const description = invite
     ? `Sumate a ${invite.group_name} en Planardo para coordinar el próximo plan.`
     : "Entrá para sumarte al grupo en Planardo.";

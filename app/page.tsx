@@ -19,6 +19,7 @@ import { createPlan, fetchMyPlans } from "@/lib/plans";
 import { fetchNotifications, markNotificationsRead } from "@/lib/notifications";
 import { fetchMyProfile, type FullProfile } from "@/lib/profiles";
 import { fetchGroupAvailability, fetchAvailability, addAvailabilityBlock, removeAvailabilityBlock, type AvailabilityBlock } from "@/lib/availability";
+import { applyTheme, getStoredTheme } from "@/lib/theme";
 import { cap } from "@/lib/format";
 
 function Brand({ onClick }: { onClick?: () => void }) {
@@ -74,7 +75,10 @@ export default function Page() {
   });
 
   useEffect(() => {
-    document.documentElement.classList.toggle("light", light);
+    setLight(getStoredTheme() === "light");
+  }, []);
+  useEffect(() => {
+    applyTheme(light ? "light" : "dark");
   }, [light]);
 
   const refreshGroups = useCallback(() => {

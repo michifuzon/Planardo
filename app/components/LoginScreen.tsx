@@ -1,9 +1,10 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, AtSign, Eye, EyeOff, Lock, Mail, RotateCw, Sparkles, UserRound } from "lucide-react";
-import { useState } from "react";
+import { ArrowRight, AtSign, Eye, EyeOff, Lock, Mail, Moon, RotateCw, Sparkles, Sun, UserRound } from "lucide-react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { applyTheme, getStoredTheme } from "@/lib/theme";
 
 type Mode = "signin" | "signup";
 type Status = "idle" | "loading" | "error" | "confirm-sent";
@@ -25,6 +26,19 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [light, setLight] = useState(false);
+
+  useEffect(() => {
+    const stored = getStoredTheme();
+    setLight(stored === "light");
+    applyTheme(stored);
+  }, []);
+
+  function toggleTheme() {
+    const next = light ? "dark" : "light";
+    setLight(!light);
+    applyTheme(next);
+  }
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -76,6 +90,7 @@ export default function LoginScreen() {
       <div className="auth-blob blob-b" />
       <div className="auth-blob blob-c" />
       <div className="auth-grain" />
+      <button className="icon-button auth-theme-toggle" onClick={toggleTheme} aria-label="Cambiar tema">{light ? <Moon size={19}/> : <Sun size={19}/>}</button>
 
       <div className="auth-card edge">
         <img src="/planardo-mark-256.png" alt="Planardo" className="auth-mark" />
