@@ -54,14 +54,17 @@ export default function Page() {
   const [todayBusy, setTodayBusy] = useState<Record<string, { from: Date; until: Date }[]>>({});
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupsLoading, setGroupsLoading] = useState(true);
+  const [groupsError, setGroupsError] = useState("");
   const [plans, setPlans] = useState<any[]>([]);
   const [directFriends, setDirectFriends] = useState<Profile[]>([]);
   const [picked, setPicked] = useState<string[]>([]);
-  const [dayAvailability, setDayAvailability] = useState<AvailabilityBlock[]>([]);
+  const [monthAvailability, setMonthAvailability] = useState<AvailabilityBlock[]>([]);
   const [availStatus, setAvailStatus] = useState<"available"|"maybe"|"busy">("busy");
   const [availFrom, setAvailFrom] = useState("");
   const [availTo, setAvailTo] = useState("");
   const [availSaving, setAvailSaving] = useState(false);
+  const [availError, setAvailError] = useState("");
+  const showAvailError = (msg: string) => { setAvailError(msg); window.setTimeout(() => setAvailError(""), 3200); };
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [notifications,setNotifications]=useState<any[]>([]);
   const [notificationsOpen,setNotificationsOpen]=useState(false);
@@ -83,8 +86,8 @@ export default function Page() {
     }
     setGroupsLoading(true);
     fetchMyGroups()
-      .then(setGroups)
-      .catch(() => setGroups([]))
+      .then(g => { setGroups(g); setGroupsError(""); })
+      .catch((e) => { setGroups([]); setGroupsError(e instanceof Error ? e.message : "No se pudieron cargar tus grupos."); })
       .finally(() => setGroupsLoading(false));
   }, []);
 
@@ -154,24 +157,40 @@ export default function Page() {
 
   const dateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 
-  useEffect(() => {
-    if (!selectedDay || !supabaseEnabled) { setDayAvailability([]); return; }
-    const key = dateKey(selectedDay);
-    fetchAvailability(key, key).then(setDayAvailability).catch(() => setDayAvailability([]));
-  }, [selectedDay]);
+  const refreshMonthAvailability = useCallback(() => {
+    if (!supabaseEnabled) { setMonthAvailability([]); return; }
+    const first = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+    const last = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0);
+    fetchAvailability(dateKey(first), dateKey(last)).then(setMonthAvailability).catch(() => setMonthAvailability([]));
+  }, [calendarMonth]);
+  useEffect(() => { refreshMonthAvailability(); }, [refreshMonthAvailability]);
+
+  const dayAvailability = useMemo(
+    () => selectedDay ? monthAvailability.filter(b => b.day === dateKey(selectedDay)) : [],
+    [monthAvailability, selectedDay]
+  );
 
   async function addAvail() {
     if (!selectedDay || availSaving) return;
+    const isFullDay = !availFrom && !availTo;
+    const duplicate = dayAvailability.some(b =>
+      b.status === availStatus &&
+      (isFullDay ? (!b.time_from && !b.time_to) : (b.time_from === availFrom + ":00" && b.time_to === availTo + ":00"))
+    );
+    if (duplicate) {
+      showAvailError(isFullDay ? "Ya marcaste ese estado para todo el día." : "Ya tenés un bloque igual en ese horario.");
+      return;
+    }
     setAvailSaving(true);
     try {
       await addAvailabilityBlock(dateKey(selectedDay), availStatus, availFrom || undefined, availTo || undefined);
       setAvailFrom(""); setAvailTo("");
-      setDayAvailability(await fetchAvailability(dateKey(selectedDay), dateKey(selectedDay)));
+      refreshMonthAvailability();
     } finally { setAvailSaving(false); }
   }
   async function removeAvail(id: string) {
     await removeAvailabilityBlock(id);
-    if (selectedDay) setDayAvailability(await fetchAvailability(dateKey(selectedDay), dateKey(selectedDay)));
+    refreshMonthAvailability();
   }
 
   const dayStart = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -212,7 +231,7 @@ export default function Page() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <button className="profile" onClick={() => setActive("profile")}><Avatar initials={initials} color="linear-gradient(135deg,#8b5cf6,#ec4899)"/><span><b>{name}</b><small>Mi perfil</small></span></button>
+          <button className="profile" onClick={() => setActive("profile")}><Avatar initials={initials} color="linear-gradient(135deg,#8b5cf6,#ec4899)" src={myProfile?.avatar_url}/><span><b>{name}</b><small>Mi perfil</small></span></button>
           {supabaseEnabled && (
             <button className="profile" onClick={() => signOut()}><span className="signout-icon"><LogOut size={16}/></span><span><b>Salir</b><small>Cerrar sesión</small></span></button>
           )}
@@ -231,7 +250,7 @@ export default function Page() {
                 setNotifications(n=>n.map(x=>({...x,read_at:x.read_at||new Date().toISOString()})));
               }
             }}><Bell size={19}/>{notifications.some(n=>!n.read_at)&&<i/>}</button>
-            <button className="top-profile-button" onClick={()=>{setActive("profile");setSelectedPlan(null)}} aria-label="Abrir mi perfil"><Avatar initials={initials} color="linear-gradient(135deg,#8b5cf6,#ec4899)"/></button>
+            <button className="top-profile-button" onClick={()=>{setActive("profile");setSelectedPlan(null)}} aria-label="Abrir mi perfil"><Avatar initials={initials} color="linear-gradient(135deg,#8b5cf6,#ec4899)" src={myProfile?.avatar_url}/></button>
           </div>
           <AnimatePresence>{notificationsOpen&&<motion.div className="notifications-panel edge" initial={{opacity:0,y:-6,scale:.98}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-5}}><div className="notifications-head"><div><p className="eyebrow">ACTIVIDAD</p><h3>Notificaciones</h3></div><button onClick={()=>setNotificationsOpen(false)}><X/></button></div>{notifications.length?notifications.map(n=><button className="notification-row" key={n.id} onClick={()=>{if(n.type==="friend_request")setActive("friends");else if(n.plan_id)setSelectedPlan(n.plan_id);setNotificationsOpen(false)}}><span>{n.type==="attendance"?"✓":n.type==="poll"?"◉":n.type==="location"?"⌖":n.type==="friend_request"?"👋":"•"}</span><div><b>{n.title}</b>{n.body&&<p>{n.body}</p>}<small>{new Date(n.created_at).toLocaleString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</small></div></button>):<div className="notifications-empty"><p>Todo tranquilo por acá.</p></div>}</motion.div>}</AnimatePresence>
         </header>
@@ -252,6 +271,7 @@ export default function Page() {
                     <div className="live-label"><i/> PARA ARRANCAR</div>
                     <h2>Todavía no tenés<br/>ningún <span>grupo</span> <b>👥</b></h2>
                     <p>Creá un grupo y compartí el link para que se sumen con su cuenta.</p>
+                    {groupsError && <p className="groups-fetch-error">No pudimos traer tus grupos: {groupsError}</p>}
                     <div className="pulse-actions">
                       <button className="pulse-cta" onClick={() => setActive("groups")}><Plus size={18}/> Crear mi primer grupo</button>
                     </div>
@@ -279,7 +299,7 @@ export default function Page() {
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: .12 * index, type: "spring" }}
                       >
-                        <Avatar initials={initialsOf(person.name)} color={person.avatar_color}/>
+                        <Avatar initials={initialsOf(person.name)} color={person.avatar_color} src={person.avatar_url}/>
                         <span>{person.name}</span>
                         {isFreeToday(person.id) && <i title="Libre hoy"/>}
                       </motion.div>
@@ -299,7 +319,7 @@ export default function Page() {
                     <button key={g.id} className="social-day edge" onClick={() => setActive("groups")}>
                       <span className="social-date"><b style={{ fontSize: 22 }}>{g.emoji}</b></span>
                       <span className="social-people">
-                        {g.members.slice(0, 4).map((m) => <Avatar key={m.id} initials={initialsOf(m.name)} color={m.avatar_color} small/>)}
+                        {g.members.slice(0, 4).map((m) => <Avatar key={m.id} initials={initialsOf(m.name)} color={m.avatar_color} src={m.avatar_url} small/>)}
                       </span>
                       <span className="social-count"><i/>{g.name}</span>
                     </button>
@@ -341,8 +361,10 @@ export default function Page() {
                     {days.map((day,i) => {
                       if (day === null) return <div className="day muted" key={i}/>;
                       const dayPlans = plansOnDay(day);
+                      const dayBlocks = monthAvailability.filter(b => b.day === dateKey(day));
+                      const dayIsBusy = dayBlocks.some(b => b.status === "busy");
                       return (
-                        <button key={i} onClick={() => setSelectedDay(day)} className={`day ${selectedDay?.toDateString()===day.toDateString()?"selected":""} ${day.toDateString()===new Date().toDateString()?"today":""}`}>
+                        <button key={i} onClick={() => setSelectedDay(day)} className={`day ${selectedDay?.toDateString()===day.toDateString()?"selected":""} ${day.toDateString()===new Date().toDateString()?"today":""} ${dayIsBusy?"day-busy":""}`}>
                           <span className="day-number">{day.getDate()}</span>
                           {dayPlans.length > 0 && <span className="day-dots">{dayPlans.slice(0,3).map((p:any)=><i key={p.id} style={{background:p.color}}/>)}</span>}
                         </button>
@@ -389,7 +411,7 @@ export default function Page() {
                           <input type="time" value={availTo} onChange={e=>setAvailTo(e.target.value)} aria-label="Hasta"/>
                           <button className="day-avail-add" onClick={addAvail} disabled={availSaving}><Plus size={15}/></button>
                         </div>
-                        <p className="availability-note">Dejá el horario vacío para marcar el día completo.</p>
+                        {availError ? <p className="availability-note avail-error-note">{availError}</p> : <p className="availability-note">Dejá el horario vacío para marcar el día completo.</p>}
                       </div>
                     </>
                   ) : (
