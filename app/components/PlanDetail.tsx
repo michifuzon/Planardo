@@ -41,6 +41,7 @@ export default function PlanDetail({id,onBack,onDeleted}:{id:string;onBack:()=>v
     const members=plan?.plan_members||[];
     return {going:members.filter((m:any)=>m.response==="going").length,maybe:members.filter((m:any)=>m.response==="maybe").length,pending:members.filter((m:any)=>m.response==="pending").length,declined:members.filter((m:any)=>m.response==="declined").length};
   },[plan]);
+  const myResponse=useMemo(()=>plan?.plan_members?.find((m:any)=>m.user_id===user?.id)?.response,[plan,user?.id]);
   if(loading)return <div className="detail-loading"><div className="auth-loading-mark"/></div>;
   if(!plan)return <div className="empty-state"><h3>No encontramos este Planardo</h3><button onClick={onBack}>Volver</button></div>;
   const start=new Date(plan.starts_at), end=plan.ends_at?new Date(plan.ends_at):null;
@@ -81,7 +82,7 @@ export default function PlanDetail({id,onBack,onDeleted}:{id:string;onBack:()=>v
       <div><p>{start.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"}).toUpperCase()}</p><h1>{plan.name}</h1><span className="hero-meta"><Clock3 size={15}/>{start.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}{end&&<> · {days>1?`${days} días · ${days-1} noches`:`hasta ${end.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}`}</>}</span>{plan.place_name&&<span className="hero-meta"><MapPin size={15}/>{plan.place_name}{plan.location_url&&<a href={plan.location_url} target="_blank"><ExternalLink size={13}/></a>}</span>}</div>
       <div className="hero-people"><div>{plan.plan_members.slice(0,6).map((m:any)=><Avatar key={m.user_id} initials={initials(m.profiles.name)} color={m.profiles.avatar_color} src={m.profiles.avatar_url}/>)}</div><span><b>{stats.going}</b> confirmados · {stats.pending} pendientes</span></div>
     </div>
-    <div className="response-bar edge"><span>¿Te sumás?</span><div><button onClick={()=>answer("going")} className="going">✓ Voy</button><button onClick={()=>answer("maybe")} className="maybe">Tal vez</button><button onClick={()=>answer("declined")} className="declined">No puedo</button></div></div>
+    <div className="response-bar edge"><span>¿Te sumás?</span><div><button onClick={()=>answer("going")} className={`going ${myResponse==="going"?"selected":""}`}>✓ Voy</button><button onClick={()=>answer("maybe")} className={`maybe ${myResponse==="maybe"?"selected":""}`}>Tal vez</button><button onClick={()=>answer("declined")} className={`declined ${myResponse==="declined"?"selected":""}`}>No puedo</button></div></div>
     <div className="detail-tabs">{TABS.map(([key,label,Icon])=><button key={key} className={tab===key?"active":""} onClick={()=>setTab(key)}><Icon size={16}/><span>{label}</span></button>)}</div>
 
     <AnimatePresence mode="wait"><motion.div key={tab} initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-3}} className="detail-content">

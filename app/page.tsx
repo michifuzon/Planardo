@@ -230,13 +230,13 @@ export default function Page() {
         <Brand onClick={() => { setActive("home"); setSelectedPlan(null); }} />
         <nav>
           {NAV_ITEMS.map(([id, Icon, label]) => (
-            <button key={id} className={active === id ? "active" : ""} onClick={() => setActive(id)}>
+            <button key={id} className={active === id ? "active" : ""} onClick={() => { setActive(id); setSelectedPlan(null); }}>
               <Icon size={20}/><span>{label}</span>
             </button>
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <button className="profile" onClick={() => setActive("profile")}><Avatar initials={initials} color="linear-gradient(135deg,#8b5cf6,#ec4899)" src={myProfile?.avatar_url}/><span><b>{name}</b><small>Mi perfil</small></span></button>
+          <button className="profile" onClick={() => { setActive("profile"); setSelectedPlan(null); }}><Avatar initials={initials} color="linear-gradient(135deg,#8b5cf6,#ec4899)" src={myProfile?.avatar_url}/><span><b>{name}</b><small>Mi perfil</small></span></button>
           {supabaseEnabled && (
             <button className="profile" onClick={() => signOut()}><span className="signout-icon"><LogOut size={16}/></span><span><b>Salir</b><small>Cerrar sesión</small></span></button>
           )}
