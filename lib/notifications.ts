@@ -1,7 +1,10 @@
 import { supabase } from "./supabase";
 function client(){if(!supabase)throw new Error("Supabase no está configurado");return supabase}
 export async function fetchNotifications(){
-  const {data,error}=await client().from("notifications").select("*").order("created_at",{ascending:false}).limit(30);
+  const db=client();
+  const {data:auth}=await db.auth.getUser();
+  if(!auth.user)return [];
+  const {data,error}=await db.from("notifications").select("*").eq("user_id",auth.user.id).order("created_at",{ascending:false}).limit(30);
   if(error)throw error;return data||[];
 }
 export async function markNotificationsRead(){

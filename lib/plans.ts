@@ -49,8 +49,11 @@ export async function createPlan(input: PlanInput) {
 
 export async function fetchMyPlans() {
   const db = client();
+  const { data: auth } = await db.auth.getUser();
+  if (!auth.user) return [];
   const { data, error } = await db.from("plan_members")
     .select("response, plans(*, plan_members(response,user_id,profiles(id,name,username,avatar_color,avatar_url)))")
+    .eq("user_id", auth.user.id)
     .order("created_at", { referencedTable: "plans", ascending: true });
   if (error) throw error;
   const unique=new Map<string,any>();

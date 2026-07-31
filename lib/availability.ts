@@ -11,7 +11,10 @@ export type AvailabilityBlock = {
 };
 
 export async function fetchAvailability(from:string,to:string): Promise<AvailabilityBlock[]>{
-  const {data,error}=await client().from("availability").select("id,day,status,time_from,time_to").gte("day",from).lte("day",to);
+  const db=client();
+  const {data:auth}=await db.auth.getUser();
+  if(!auth.user)return [];
+  const {data,error}=await db.from("availability").select("id,day,status,time_from,time_to").eq("user_id",auth.user.id).gte("day",from).lte("day",to);
   if(error)throw error; return data||[];
 }
 export async function addAvailabilityBlock(day:string,status:"available"|"maybe"|"busy",timeFrom?:string,timeTo?:string){

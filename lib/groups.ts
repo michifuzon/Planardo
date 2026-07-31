@@ -26,11 +26,16 @@ function client() {
 
 export async function fetchMyGroups(): Promise<Group[]> {
   const db = client();
+  const { data: userData } = await db.auth.getUser();
+  const myId = userData.user?.id;
+  if (!myId) return [];
+
   let { data: memberships, error } = await db
     .from("group_members")
-    .select("group_id, groups(id, name, emoji, color, description, photo_url, created_by)");
+    .select("group_id, groups(id, name, emoji, color, description, photo_url, created_by)")
+    .eq("user_id", myId);
   if (error?.code === "42703" || error?.code === "PGRST204") {
-    const fallback = await db.from("group_members").select("group_id, groups(id, name, emoji, color, created_by)");
+    const fallback = await db.from("group_members").select("group_id, groups(id, name, emoji, color, created_by)").eq("user_id", myId);
     memberships = fallback.data as typeof memberships;
     error = fallback.error;
   }
