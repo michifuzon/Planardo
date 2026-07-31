@@ -47,6 +47,20 @@ export async function createPlan(input: PlanInput) {
   return data;
 }
 
+export async function updatePlan(planId: string, input: Omit<PlanInput, "invitee_ids" | "creation_key" | "cover_file">) {
+  const db = client();
+  const starts_at = new Date(`${input.date}T${input.time}:00`).toISOString();
+  const ends_at = input.end_date ? new Date(`${input.end_date}T${input.end_time || input.time}:00`).toISOString() : null;
+  const { data, error } = await db.from("plans").update({
+    name: input.name, emoji: input.emoji, starts_at, ends_at,
+    place_name: input.place_name || null, description: input.description || null,
+    color: input.color, plan_type: input.plan_type || "other",
+    location_url: input.location_url || null, notes: input.notes || null,
+  }).eq("id", planId).select().single();
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchMyPlans() {
   const db = client();
   const { data: auth } = await db.auth.getUser();

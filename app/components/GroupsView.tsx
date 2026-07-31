@@ -1,9 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Check, Crown, Link as LinkIcon, Plus, Trash2, Users, X } from "lucide-react";
+import { ArrowLeft, Check, Crown, Link as LinkIcon, Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import { useRef, useState } from "react";
-import { createGroup, createInvite, deleteGroup, type Group } from "@/lib/groups";
+import { createGroup, createInvite, deleteGroup, updateGroup, type Group } from "@/lib/groups";
 import Avatar from "./Avatar";
 import AvailabilityView from "./AvailabilityView";
 import { useAuth } from "./AuthProvider";
@@ -19,16 +19,19 @@ export default function GroupsView({
   groups,
   loading,
   onRefresh,
+  initialOpenGroupId,
 }: {
   groups: Group[];
   loading: boolean;
   onRefresh: () => void;
+  initialOpenGroupId?: string | null;
 }) {
   const { user } = useAuth();
-  const [openGroupId, setOpenGroupId] = useState<string | null>(null);
+  const [openGroupId, setOpenGroupId] = useState<string | null>(initialOpenGroupId ?? null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState(EMOJIS[0]);
   const [color, setColor] = useState(COLORS[0]);
@@ -45,26 +48,46 @@ export default function GroupsView({
     window.setTimeout(() => setToast(""), 2800);
   }
 
+  function resetForm() {
+    setCreateOpen(false);
+    setEditingId(null);
+    setName("");
+    setEmoji(EMOJIS[0]);
+    setColor(COLORS[0]);
+    setDescription("");
+    setPhoto(undefined);
+  }
+
+  function openEdit(g: Group) {
+    setEditingId(g.id);
+    setName(g.name);
+    setEmoji(g.emoji);
+    setColor(g.color);
+    setDescription(g.description || "");
+    setPhoto(undefined);
+    setCreateOpen(true);
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || creatingRef.current) return;
     creatingRef.current = true;
     setSaving(true);
     try {
-      await createGroup(name.trim(), emoji, color, description.trim(), photo);
-      setCreateOpen(false);
-      setName("");
-      setEmoji(EMOJIS[0]);
-      setColor(COLORS[0]);
-      setDescription("");
-      setPhoto(undefined);
+      if (editingId) {
+        await updateGroup(editingId, { name: name.trim(), emoji, color, description: description.trim(), photoFile: photo });
+        showToast("Grupo actualizado ✏️");
+      } else {
+        await createGroup(name.trim(), emoji, color, description.trim(), photo);
+        showToast("Grupo creado 🎉");
+      }
+      resetForm();
       onRefresh();
-      showToast("Grupo creado 🎉");
     } catch (err) {
       const raw = err as { message?: string; details?: string; hint?: string };
       const msg = err instanceof Error ? err.message : raw?.message || raw?.details || raw?.hint || "Error desconocido";
-      console.error("createGroup failed:", err);
-      showToast(`No se pudo crear el grupo. ${msg}`, true);
+      console.error("saveGroup failed:", err);
+      showToast(`No se pudo guardar el grupo. ${msg}`, true);
     } finally {
       creatingRef.current = false;
       setSaving(false);
@@ -121,9 +144,14 @@ export default function GroupsView({
             <LinkIcon size={15} /> Invitar
           </button>
           {openGroup.created_by === user?.id && (
-            <button className="group-delete" onClick={() => setConfirmDeleteId(openGroup.id)} aria-label="Eliminar grupo">
-              <Trash2 size={15} />
-            </button>
+            <>
+              <button className="group-delete" onClick={() => openEdit(openGroup)} aria-label="Editar grupo">
+                <Pencil size={15} />
+              </button>
+              <button className="group-delete" onClick={() => setConfirmDeleteId(openGroup.id)} aria-label="Eliminar grupo">
+                <Trash2 size={15} />
+              </button>
+            </>
           )}
         </div>
 
@@ -221,7 +249,7 @@ export default function GroupsView({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onMouseDown={(e) => e.target === e.currentTarget && setCreateOpen(false)}
+            onMouseDown={(e) => e.target === e.currentTarget && resetForm()}
           >
             <motion.div
               className="modal edge"
@@ -233,10 +261,10 @@ export default function GroupsView({
               <div className="modal-handle" />
               <div className="modal-head">
                 <div>
-                  <p className="eyebrow">NUEVO GRUPO</p>
-                  <h2>Armá un grupo</h2>
+                  <p className="eyebrow">{editingId ? "EDITAR GRUPO" : "NUEVO GRUPO"}</p>
+                  <h2>{editingId ? "Editá tu grupo" : "Armá un grupo"}</h2>
                 </div>
-                <button onClick={() => setCreateOpen(false)}>
+                <button onClick={resetForm}>
                   <X />
                 </button>
               </div>
@@ -251,7 +279,7 @@ export default function GroupsView({
                   />
                 </label>
                 <label className="field"><span>Descripción</span><input value={description} onChange={e=>setDescription(e.target.value)} placeholder="¿Quiénes forman este grupo?"/></label>
-                <label className="field"><span>Foto del grupo (opcional)</span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>setPhoto(e.target.files?.[0])}/></label>
+                <label className="field"><span>{editingId ? "Cambiar foto (opcional)" : "Foto del grupo (opcional)"}</span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>setPhoto(e.target.files?.[0])}/></label>
                 <div className="color-select">
                   <span>Emoji</span>
                   <div>
@@ -284,7 +312,7 @@ export default function GroupsView({
                   </div>
                 </div>
                 <button className="create-submit" disabled={saving || !name.trim()}>
-                  {saving ? "Creando…" : "Crear grupo"}
+                  {saving ? "Guardando…" : editingId ? "Guardar cambios" : "Crear grupo"}
                 </button>
               </form>
             </motion.div>

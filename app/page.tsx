@@ -56,6 +56,7 @@ export default function Page() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupsLoading, setGroupsLoading] = useState(true);
   const [groupsError, setGroupsError] = useState("");
+  const [groupToOpen, setGroupToOpen] = useState<string | null>(null);
   const [plans, setPlans] = useState<any[]>([]);
   const [directFriends, setDirectFriends] = useState<Profile[]>([]);
   const [picked, setPicked] = useState<string[]>([]);
@@ -281,7 +282,7 @@ export default function Page() {
                 <section className="social-pulse edge">
                   <div className="pulse-copy">
                     <div className="live-label"><i/> {availableToday.length > 0 ? `${availableToday.length} LIBRES HOY` : "TU GENTE"}</div>
-                    <h2>Tenés <span>{friends.length}</span> {friends.length === 1 ? "amiga/o" : "amigas/os"}<br/>y estás en <span>{groups.length}</span> {groups.length === 1 ? "grupo" : "grupos"} <b>🔥</b></h2>
+                    <h2>Tenés <span>{directFriends.length}</span> {directFriends.length === 1 ? "amiga/o" : "amigas/os"}<br/>y estás en <span>{groups.length}</span> {groups.length === 1 ? "grupo" : "grupos"} <b>🔥</b></h2>
                     <p>Elegí un grupo y armá un plan, o invitá a alguien más.</p>
                     <div className="pulse-actions">
                       <button className="pulse-cta" onClick={() => setModal(true)}><Plus size={18}/> Armar un Planardo</button>
@@ -312,11 +313,11 @@ export default function Page() {
               <section className="week-social">
                 <div className="section-title">
                   <div><h2>Tus grupos</h2><p>Un vistazo rápido — el detalle está en la pestaña Grupos</p></div>
-                  <button className="see-all" onClick={() => setActive("groups")}>Ver todos <ChevronRight size={16}/></button>
+                  <button className="see-all" onClick={() => { setGroupToOpen(null); setActive("groups"); }}>Ver todos <ChevronRight size={16}/></button>
                 </div>
                 <div className="social-days">
                   {groups.slice(0, 5).map((g) => (
-                    <button key={g.id} className="social-day edge" onClick={() => setActive("groups")}>
+                    <button key={g.id} className="social-day edge" onClick={() => { setGroupToOpen(g.id); setActive("groups"); }}>
                       <span className="social-date"><b style={{ fontSize: 22 }}>{g.emoji}</b></span>
                       <span className="social-people">
                         {g.members.slice(0, 4).map((m) => <Avatar key={m.id} initials={initialsOf(m.name)} color={m.avatar_color} src={m.avatar_url} small/>)}
@@ -325,7 +326,7 @@ export default function Page() {
                     </button>
                   ))}
                   {groups.length === 0 && !groupsLoading && (
-                    <button className="social-day edge" onClick={() => setActive("groups")}>
+                    <button className="social-day edge" onClick={() => { setGroupToOpen(null); setActive("groups"); }}>
                       <span className="social-count">+ Crear grupo</span>
                     </button>
                   )}
@@ -426,7 +427,7 @@ export default function Page() {
           )}
 
           {active === "groups" && (
-            <GroupsView groups={groups} loading={groupsLoading} onRefresh={refreshGroups} />
+            <GroupsView groups={groups} loading={groupsLoading} onRefresh={refreshGroups} initialOpenGroupId={groupToOpen} />
           )}
 
           {active === "friends" && <FriendsView />}
@@ -437,7 +438,7 @@ export default function Page() {
           </>}
 
           {active === "profile" && (
-            <ProfileView fallbackName={name} email={user?.email} groupCount={groups.length} friendCount={friends.length} onChanged={setMyProfile}/>
+            <ProfileView fallbackName={name} email={user?.email} groupCount={groups.length} friendCount={directFriends.length} onChanged={setMyProfile}/>
           )}
           </>}
         </div>

@@ -1,11 +1,11 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, CalendarDays, Car, Check, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, ExternalLink, ImagePlus, ListChecks, MapPin, MessageCircle, Plus, Send, Trash2, Users, Vote, X, XCircle } from "lucide-react";
+import { ArrowLeft, CalendarDays, Car, Check, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, ExternalLink, ImagePlus, ListChecks, MapPin, MessageCircle, Pencil, Plus, Send, Trash2, Users, Vote, X, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addChecklistItem, addExpense, addPlanItem, addPoll, addTimelineItem, claimPlanItem,
-  addPlanComment, cancelPlan, deletePoll, fetchPlanDetail, respondToPlan, sendPlanMessage, setPlanTransport, toggleChecklistItem, uploadPlanPhoto, votePoll,
+  addPlanComment, cancelPlan, deletePoll, fetchPlanDetail, respondToPlan, sendPlanMessage, setPlanTransport, toggleChecklistItem, updatePlan, uploadPlanPhoto, votePoll,
 } from "@/lib/plans";
 import { cap } from "@/lib/format";
 import Avatar from "./Avatar";
@@ -16,6 +16,10 @@ const TABS = [
   ["polls","Encuestas",Vote],["budget","Gastos",CircleDollarSign],["chat","Chat",MessageCircle],["memories","Fotos",ImagePlus],
 ] as const;
 const initials=(name:string)=>name.slice(0,2).toUpperCase();
+const pad=(n:number)=>String(n).padStart(2,"0");
+function toLocalParts(iso:string){const d=new Date(iso);return {date:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`,time:`${pad(d.getHours())}:${pad(d.getMinutes())}`};}
+const PLAN_TYPES:[string,string][]=[["food","🍕 Cena / comida"],["home","🏠 Casa"],["camping","🏕️ Camping"],["trip","✈️ Viaje"],["birthday","🎂 Cumpleaños"],["bar","🍻 Bar"],["cinema","🎬 Cine"],["outdoor","🏖️ Aire libre"],["sport","🏃 Deporte"],["gaming","🎮 Gaming"],["study","📚 Estudio"],["party","🎉 Fiesta"],["other","✨ Otro"]];
+const PLAN_COLORS=["#8b5cf6","#f97316","#06b6d4","#22c55e","#ec4899"];
 
 export default function PlanDetail({id,onBack,onDeleted}:{id:string;onBack:()=>void;onDeleted?:()=>void}) {
   const {user}=useAuth();
@@ -33,6 +37,9 @@ export default function PlanDetail({id,onBack,onDeleted}:{id:string;onBack:()=>v
   const [confirmDelete,setConfirmDelete]=useState(false);
   const [quickSaving,setQuickSaving]=useState(false);
   const [quickError,setQuickError]=useState("");
+  const [editOpen,setEditOpen]=useState(false);
+  const [editForm,setEditForm]=useState<any>(null);
+  const [editSaving,setEditSaving]=useState(false);
   const refresh=useCallback(()=>fetchPlanDetail(id).then(setPlan),[id]);
   const load=useCallback(()=>{setLoading(true);refresh().finally(()=>setLoading(false));},[refresh]);
   useEffect(()=>{load()},[load]);
@@ -46,6 +53,28 @@ export default function PlanDetail({id,onBack,onDeleted}:{id:string;onBack:()=>v
   if(!plan)return <div className="empty-state"><h3>No encontramos este Planardo</h3><button onClick={onBack}>Volver</button></div>;
   const start=new Date(plan.starts_at), end=plan.ends_at?new Date(plan.ends_at):null;
   const days=end?Math.max(1,Math.round((end.getTime()-start.getTime())/86400000)+1):1;
+
+  function openEdit(){
+    const startParts=toLocalParts(plan.starts_at);
+    const endParts=plan.ends_at?toLocalParts(plan.ends_at):null;
+    setEditForm({
+      name:plan.name,emoji:plan.emoji,date:startParts.date,time:startParts.time,
+      end_date:endParts?.date||"",end_time:endParts?.time||"",
+      place_name:plan.place_name||"",location_url:plan.location_url||"",
+      description:plan.description||"",notes:plan.notes||"",
+      plan_type:plan.plan_type||"other",color:plan.color,
+    });
+    setEditOpen(true);
+  }
+  async function saveEdit(){
+    if(!editForm?.name?.trim()||!editForm?.date||editSaving)return;
+    setEditSaving(true);
+    try{
+      await updatePlan(id,editForm);
+      setEditOpen(false);
+      refresh();
+    }finally{setEditSaving(false)}
+  }
 
   async function answer(response:"going"|"maybe"|"declined"){
     const result=await respondToPlan(id,response);
@@ -78,7 +107,7 @@ export default function PlanDetail({id,onBack,onDeleted}:{id:string;onBack:()=>v
     <button className="detail-back" onClick={onBack}><ArrowLeft size={17}/> Volver</button>
     <div className="plan-hero edge" style={{"--plan-color":plan.color} as React.CSSProperties}>
       {plan.cover_url&&<img className="plan-cover" src={plan.cover_url} alt=""/>}
-      <div className="plan-hero-top"><span className="plan-big-emoji">{plan.emoji}</span><div className="plan-hero-actions"><span className="plan-type">{plan.plan_type||"Plan"}</span>{plan.created_by===user?.id&&plan.status!=="cancelled"&&<button onClick={()=>setConfirmDelete(true)} aria-label="Dar de baja el Planardo"><XCircle/><span>Dar de baja</span></button>}</div></div>
+      <div className="plan-hero-top"><span className="plan-big-emoji">{plan.emoji}</span><div className="plan-hero-actions"><span className="plan-type">{plan.plan_type||"Plan"}</span>{plan.created_by===user?.id&&plan.status!=="cancelled"&&<><button onClick={openEdit} aria-label="Editar el Planardo"><Pencil/><span>Editar</span></button><button onClick={()=>setConfirmDelete(true)} aria-label="Dar de baja el Planardo"><XCircle/><span>Dar de baja</span></button></>}</div></div>
       <div><p>{start.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"}).toUpperCase()}</p><h1>{plan.name}</h1><span className="hero-meta"><Clock3 size={15}/>{start.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}{end&&<> · {days>1?`${days} días · ${days-1} noches`:`hasta ${end.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}`}</>}</span>{plan.place_name&&<span className="hero-meta"><MapPin size={15}/>{plan.place_name}{plan.location_url&&<a href={plan.location_url} target="_blank"><ExternalLink size={13}/></a>}</span>}</div>
       <div className="hero-people"><div>{plan.plan_members.slice(0,6).map((m:any)=><Avatar key={m.user_id} initials={initials(m.profiles.name)} color={m.profiles.avatar_color} src={m.profiles.avatar_url}/>)}</div><span><b>{stats.going}</b> confirmados · {stats.pending} pendientes</span></div>
     </div>
@@ -105,5 +134,28 @@ export default function PlanDetail({id,onBack,onDeleted}:{id:string;onBack:()=>v
     <AnimatePresence>{quick.open&&<motion.div className="modal-backdrop" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}><motion.div className="quick-modal edge" initial={{scale:.96,y:12}} animate={{scale:1,y:0}}><div className="modal-head"><div><p className="eyebrow">AGREGAR</p><h2>{quick.type==="check"?"Nueva tarea":quick.type==="item"?"¿Qué hay que llevar?":quick.type==="timeline"?"Actividad":quick.type==="expense"?"Nuevo gasto":"Nueva encuesta"}</h2></div><button onClick={()=>setQuick({type:"",open:false})}><X/></button></div><label className="quick-field"><span>{quick.type==="poll"?"Pregunta":"Nombre"}</span><input autoFocus value={field} onChange={e=>setField(e.target.value)}/></label>{["timeline","expense"].includes(quick.type)&&<label className="quick-field"><span>{quick.type==="timeline"?"Fecha y hora":"Importe"}</span><input type={quick.type==="timeline"?"datetime-local":"number"} value={field2} onChange={e=>setField2(e.target.value)}/></label>}{quick.type==="poll"&&<div className="poll-option-fields"><span className="quick-field-label">Opciones</span>{pollOptions.map((opt,i)=><div className="poll-option-row" key={i}><input value={opt} placeholder={`Opción ${i+1}`} onChange={e=>setPollOptions(list=>list.map((v,idx)=>idx===i?e.target.value:v))}/>{pollOptions.length>2&&<button type="button" className="poll-option-remove" onClick={()=>setPollOptions(list=>list.filter((_,idx)=>idx!==i))} aria-label="Quitar opción"><X size={14}/></button>}</div>)}<button type="button" className="poll-option-add" onClick={()=>setPollOptions(list=>[...list,""])}><Plus size={14}/> Agregar opción</button></div>}{quickError&&<p className="quick-error">{quickError}</p>}<button className="create-submit" disabled={quickSaving} onClick={submitQuick}>{quickSaving?"Guardando…":"Agregar"} <ChevronRight/></button></motion.div></motion.div>}</AnimatePresence>
     <AnimatePresence>{conflicts.length>0&&<motion.div className="modal-backdrop" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}><motion.div className="conflict-modal edge" initial={{scale:.96,y:12}} animate={{scale:1,y:0}}><span className="conflict-icon">!</span><h2>Ya tenés otro plan</h2><p>Para cuidar tu agenda, no podés confirmar dos Planardos superpuestos.</p>{conflicts.map(c=><div className="conflict-plan" key={c.id}><b>{c.emoji} {c.name}</b><small>{cap(new Date(c.starts_at).toLocaleString("es-AR",{weekday:"long",day:"numeric",hour:"2-digit",minute:"2-digit"}))}</small></div>)}<button className="create-submit" onClick={()=>setConflicts([])}>Entendido</button></motion.div></motion.div>}</AnimatePresence>
     <AnimatePresence>{confirmDelete&&<motion.div className="modal-backdrop" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}><motion.div className="delete-group-modal edge" initial={{scale:.96,y:12}} animate={{scale:1,y:0}}><span><XCircle/></span><h2>¿Dar de baja este Planardo?</h2><p>Dejará de aparecer como plan activo y liberará la disponibilidad de todos. Conservaremos sus datos como registro.</p><div><button onClick={()=>setConfirmDelete(false)}>Volver</button><button className="danger" onClick={async()=>{await cancelPlan(id);onDeleted?.();onBack()}}>Dar de baja</button></div></motion.div></motion.div>}</AnimatePresence>
+
+    <AnimatePresence>{editOpen&&editForm&&<motion.div className="modal-backdrop" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onMouseDown={e=>e.target===e.currentTarget&&setEditOpen(false)}><motion.div className="modal edge" initial={{opacity:0,y:30,scale:.97}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:30,scale:.97}} transition={{type:"spring",damping:26,stiffness:300}}>
+      <div className="modal-handle"/>
+      <div className="modal-head"><div><p className="eyebrow">EDITAR</p><h2>Editá tu Planardo</h2></div><button onClick={()=>setEditOpen(false)}><X/></button></div>
+      <div className="form">
+        <label className="main-input"><span className="emoji-picker">{editForm.emoji}</span><input autoFocus placeholder="¿Qué plan pinta?" value={editForm.name} onChange={e=>setEditForm({...editForm,name:e.target.value})}/></label>
+        <div className="field-row">
+          <label><span><CalendarDays size={17}/> Fecha</span><input type="date" value={editForm.date} onChange={e=>setEditForm({...editForm,date:e.target.value})}/></label>
+          <label><span><Clock3 size={17}/> Hora</span><input type="time" value={editForm.time} onChange={e=>setEditForm({...editForm,time:e.target.value})}/></label>
+        </div>
+        <div className="field-row">
+          <label><span><CalendarDays size={17}/> Finaliza (opcional)</span><input type="date" min={editForm.date} value={editForm.end_date} onChange={e=>setEditForm({...editForm,end_date:e.target.value})}/></label>
+          <label><span><Clock3 size={17}/> Hora final</span><input type="time" value={editForm.end_time} onChange={e=>setEditForm({...editForm,end_time:e.target.value})}/></label>
+        </div>
+        <label className="field"><span><Vote size={17}/> Tipo de plan</span><select value={editForm.plan_type} onChange={e=>setEditForm({...editForm,plan_type:e.target.value})}>{PLAN_TYPES.map(([v,l])=><option value={v} key={v}>{l}</option>)}</select></label>
+        <label className="field"><span><MapPin size={17}/> Lugar</span><input placeholder="¿Dónde se juntan?" value={editForm.place_name} onChange={e=>setEditForm({...editForm,place_name:e.target.value})}/></label>
+        <label className="field"><span><MapPin size={17}/> Link de ubicación</span><input type="url" placeholder="https://maps.google.com/…" value={editForm.location_url} onChange={e=>setEditForm({...editForm,location_url:e.target.value})}/></label>
+        <label className="field"><span>Descripción</span><input placeholder="Contales de qué se trata" value={editForm.description} onChange={e=>setEditForm({...editForm,description:e.target.value})}/></label>
+        <label className="field"><span>Nota importante</span><input placeholder="Algo que no se puedan perder" value={editForm.notes} onChange={e=>setEditForm({...editForm,notes:e.target.value})}/></label>
+        <div className="color-select"><span>Color del plan</span><div>{PLAN_COLORS.map(c=><button type="button" key={c} onClick={()=>setEditForm({...editForm,color:c})} className={editForm.color===c?"selected":""} style={{background:c}}>{editForm.color===c&&<Check/>}</button>)}</div></div>
+        <button className="create-submit" disabled={editSaving||!editForm.name.trim()||!editForm.date} onClick={saveEdit}>{editSaving?"Guardando…":"Guardar cambios"} <Check size={18}/></button>
+      </div>
+    </motion.div></motion.div>}</AnimatePresence>
   </section>
 }

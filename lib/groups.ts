@@ -86,6 +86,29 @@ export async function createGroup(name: string, emoji: string, color: string, de
   return data;
 }
 
+export async function updateGroup(
+  groupId: string,
+  fields: { name: string; emoji: string; color: string; description?: string; photoFile?: File }
+) {
+  const db = client();
+  const updates: Record<string, unknown> = {
+    name: fields.name,
+    emoji: fields.emoji,
+    color: fields.color,
+    description: fields.description || null,
+  };
+  if (fields.photoFile) {
+    const ext = fields.photoFile.name.split(".").pop() || "jpg";
+    const path = `groups/${groupId}-${Date.now()}.${ext}`;
+    const { error: uploadError } = await db.storage.from("plan-media").upload(path, fields.photoFile);
+    if (uploadError) throw uploadError;
+    updates.photo_url = db.storage.from("plan-media").getPublicUrl(path).data.publicUrl;
+  }
+  const { data, error } = await db.from("groups").update(updates).eq("id", groupId).select().single();
+  if (error) throw error;
+  return data;
+}
+
 export async function createInvite(groupId: string) {
   const db = client();
   const { data: userData } = await db.auth.getUser();
