@@ -1,15 +1,41 @@
 "use client";
 
 import { Check, Minus, Plus, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+
+const STAGE = 260;
 
 export default function AvatarCropper({file,onCancel,onConfirm}:{file:File;onCancel:()=>void;onConfirm:(file:File)=>void}){
   const [zoom,setZoom]=useState(1);
   const [offsetX,setOffsetX]=useState(0);
   const [offsetY,setOffsetY]=useState(0);
+  const [natural,setNatural]=useState<{w:number;h:number}|null>(null);
   const [saving,setSaving]=useState(false);
   const url=useMemo(()=>URL.createObjectURL(file),[file]);
-  useEffect(()=>()=>URL.revokeObjectURL(url),[url]);
+  const stageRef=useRef<HTMLDivElement>(null);
+  const drag=useRef<{x:number;y:number;offX:number;offY:number}|null>(null);
+
+  const cover=natural?Math.max(STAGE/natural.w,STAGE/natural.h):0;
+  const dispW=natural?natural.w*cover*zoom:STAGE;
+  const dispH=natural?natural.h*cover*zoom:STAGE;
+  const maxPanX=Math.max(0,(dispW-STAGE)/2);
+  const maxPanY=Math.max(0,(dispH-STAGE)/2);
+  const pxX=(offsetX/100)*maxPanX;
+  const pxY=(offsetY/100)*maxPanY;
+
+  function clamp(v:number){return Math.max(-100,Math.min(100,v))}
+
+  function onPointerDown(e:React.PointerEvent){
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    drag.current={x:e.clientX,y:e.clientY,offX:offsetX,offY:offsetY};
+  }
+  function onPointerMove(e:React.PointerEvent){
+    if(!drag.current)return;
+    const dx=e.clientX-drag.current.x, dy=e.clientY-drag.current.y;
+    setOffsetX(clamp(drag.current.offX+(maxPanX?(dx/maxPanX)*100:0)));
+    setOffsetY(clamp(drag.current.offY+(maxPanY?(dy/maxPanY)*100:0)));
+  }
+  function onPointerUp(){drag.current=null}
 
   async function crop(){
     setSaving(true);
@@ -35,14 +61,25 @@ export default function AvatarCropper({file,onCancel,onConfirm}:{file:File;onCan
 
   return <div className="modal-backdrop crop-backdrop">
     <div className="crop-modal edge">
-      <div className="crop-head"><div><p className="eyebrow">FOTO DE PERFIL</p><h2>Ajustá tu foto</h2></div><button onClick={onCancel}><X/></button></div>
-      <div className="crop-stage">
-        <img src={url} alt="Vista previa" style={{transform:`translate(${offsetX/2}%,${offsetY/2}%) scale(${zoom})`}}/>
-        <span className="crop-mask"/>
+      <div className="crop-head"><div><p className="eyebrow">FOTO DE PERFIL</p><h2>Acomodá tu foto</h2></div><button onClick={onCancel}><X/></button></div>
+      <p className="crop-hint">Arrastrá la foto para ubicarla dentro del círculo</p>
+      <div
+        className="crop-stage"
+        ref={stageRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
+        <img
+          src={url}
+          alt="Vista previa"
+          draggable={false}
+          onLoad={(e)=>setNatural({w:e.currentTarget.naturalWidth,h:e.currentTarget.naturalHeight})}
+          style={{width:dispW,height:dispH,transform:`translate(-50%,-50%) translate(${pxX}px,${pxY}px)`}}
+        />
       </div>
-      <div className="crop-control"><Minus/><input aria-label="Zoom" type="range" min="1" max="3" step=".01" value={zoom} onChange={e=>setZoom(Number(e.target.value))}/><Plus/></div>
-      <label className="crop-axis"><span>Horizontal</span><input type="range" min="-100" max="100" value={offsetX} onChange={e=>setOffsetX(Number(e.target.value))}/></label>
-      <label className="crop-axis"><span>Vertical</span><input type="range" min="-100" max="100" value={offsetY} onChange={e=>setOffsetY(Number(e.target.value))}/></label>
+      <div className="crop-control"><Minus size={16}/><input aria-label="Zoom" type="range" min="1" max="3" step=".01" value={zoom} onChange={e=>setZoom(Number(e.target.value))}/><Plus size={16}/></div>
       <button className="create-submit crop-save" disabled={saving} onClick={()=>void crop()}>{saving?"Preparando…":<><Check/> Usar esta foto</>}</button>
     </div>
   </div>
