@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Check, Crown, Link as LinkIcon, Plus, Trash2, Users, X } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createGroup, createInvite, deleteGroup, type Group } from "@/lib/groups";
 import Avatar from "./Avatar";
 import AvailabilityView from "./AvailabilityView";
@@ -35,6 +35,7 @@ export default function GroupsView({
   const [description,setDescription]=useState("");
   const [photo,setPhoto]=useState<File>();
   const [saving, setSaving] = useState(false);
+  const creatingRef = useRef(false);
   const [toast, setToast] = useState("");
   const [toastError,setToastError]=useState(false);
 
@@ -46,7 +47,8 @@ export default function GroupsView({
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || creatingRef.current) return;
+    creatingRef.current = true;
     setSaving(true);
     try {
       await createGroup(name.trim(), emoji, color, description.trim(), photo);
@@ -64,6 +66,7 @@ export default function GroupsView({
       console.error("createGroup failed:", err);
       showToast(`No se pudo crear el grupo. ${msg}`, true);
     } finally {
+      creatingRef.current = false;
       setSaving(false);
     }
   }
