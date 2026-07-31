@@ -5,7 +5,7 @@ import AuthProvider from "./components/AuthProvider";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
-const title = "PLANARDO — Juntarse es más fácil";
+const title = "Planardo — Juntarse es más fácil";
 const description = "La app social para organizar planes con amigos.";
 
 export const metadata: Metadata = {
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     title,
     description,
     url: "https://planardo.vercel.app",
-    siteName: "PLANARDO",
+    siteName: "Planardo",
     images: [{ url: "/og-image.png", width: 1200, height: 1200 }],
     locale: "es_AR",
     type: "website",

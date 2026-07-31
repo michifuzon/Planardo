@@ -1,97 +1,39 @@
-"use client";
+import type { Metadata } from "next";
+import JoinClient from "./JoinClient";
 
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { fetchInvite, joinGroupWithInvite } from "@/lib/groups";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-type State = "loading" | "ready" | "joining" | "joined" | "invalid" | "error";
+async function fetchInviteInfo(code: string) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/group_invites?code=eq.${encodeURIComponent(code)}&select=group_name,group_emoji`,
+      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }, next: { revalidate: 60 } }
+    );
+    if (!res.ok) return null;
+    const rows = await res.json();
+    return rows[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ code: string }> }): Promise<Metadata> {
+  const { code } = await params;
+  const invite = await fetchInviteInfo(code);
+  const title = invite ? `Te invito al grupo ${invite.group_emoji} ${invite.group_name}` : "Te invitaron a un grupo en Planardo";
+  const description = invite
+    ? `Sumate a ${invite.group_name} en Planardo para coordinar el próximo plan.`
+    : "Entrá para sumarte al grupo en Planardo.";
+  return {
+    title,
+    description,
+    openGraph: { title, description, images: [{ url: "/og-image.png", width: 1200, height: 1200 }], locale: "es_AR", type: "website" },
+    twitter: { card: "summary", title, description, images: ["/og-image.png"] },
+  };
+}
 
 export default function JoinPage() {
-  const params = useParams<{ code: string }>();
-  const router = useRouter();
-  const [state, setState] = useState<State>("loading");
-  const [invite, setInvite] = useState<{ group_name: string; group_emoji: string; group_color: string } | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchInvite(params.code)
-      .then((data) => {
-        if (cancelled) return;
-        if (!data) setState("invalid");
-        else {
-          setInvite(data);
-          setState("ready");
-        }
-      })
-      .catch(() => !cancelled && setState("error"));
-    return () => {
-      cancelled = true;
-    };
-  }, [params.code]);
-
-  async function join() {
-    setState("joining");
-    try {
-      await joinGroupWithInvite(params.code);
-      setState("joined");
-      window.setTimeout(() => router.push("/"), 1400);
-    } catch {
-      setState("error");
-    }
-  }
-
-  return (
-    <main className="auth-shell">
-      <div className="auth-blob blob-a" />
-      <div className="auth-blob blob-b" />
-      <div className="auth-blob blob-c" />
-      <div className="auth-grain" />
-
-      <div className="auth-card edge">
-        {state === "loading" && (
-          <>
-            <div className="auth-loading-mark" style={{ margin: "0 auto 20px" }} />
-            <p className="auth-copy">Buscando la invitación…</p>
-          </>
-        )}
-
-        {state === "invalid" && (
-          <>
-            <h1>Invitación inválida</h1>
-            <p className="auth-copy">Este link no existe o ya venció. Pedile a quien te invitó que te mande uno nuevo.</p>
-          </>
-        )}
-
-        {state === "error" && (
-          <>
-            <h1>Algo salió mal</h1>
-            <p className="auth-copy">No pudimos procesar la invitación. Probá de nuevo en un rato.</p>
-          </>
-        )}
-
-        {(state === "ready" || state === "joining") && invite && (
-          <>
-            <div className="auth-sent-icon" style={{ background: invite.group_color + "26", color: invite.group_color, fontSize: 24 }}>
-              {invite.group_emoji}
-            </div>
-            <p className="auth-eyebrow">TE INVITARON A</p>
-            <h1>{invite.group_name}</h1>
-            <p className="auth-copy">Sumate para ver los planes y coordinar con el grupo.</p>
-            <button className="auth-submit" onClick={join} disabled={state === "joining"}>
-              {state === "joining" ? "Uniéndote…" : "Unirme al grupo"}
-            </button>
-          </>
-        )}
-
-        {state === "joined" && invite && (
-          <>
-            <h1>¡Listo! 🎉</h1>
-            <p className="auth-copy">
-              Ya sos parte de <b>{invite.group_name}</b>. Te llevamos al inicio…
-            </p>
-          </>
-        )}
-      </div>
-    </main>
-  );
+  return <JoinClient />;
 }

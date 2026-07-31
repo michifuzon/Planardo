@@ -1,11 +1,11 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Link as LinkIcon, Plus, Trash2, Users, X } from "lucide-react";
+import { ArrowLeft, Check, Crown, Link as LinkIcon, Plus, Users, X } from "lucide-react";
 import { useState } from "react";
-import { createGroup, createInvite, deleteGroup, type Group } from "@/lib/groups";
+import { createGroup, createInvite, type Group } from "@/lib/groups";
 import Avatar from "./Avatar";
-import { useAuth } from "./AuthProvider";
+import AvailabilityView from "./AvailabilityView";
 
 const EMOJIS = ["👥", "💙", "🎉", "🏠", "🌮", "⚡", "🎮", "⭐"];
 const COLORS = ["#8b5cf6", "#f97316", "#06b6d4", "#22c55e", "#ec4899"];
@@ -23,6 +23,7 @@ export default function GroupsView({
   loading: boolean;
   onRefresh: () => void;
 }) {
+  const [openGroupId, setOpenGroupId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState(EMOJIS[0]);
@@ -32,8 +33,6 @@ export default function GroupsView({
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
   const [toastError,setToastError]=useState(false);
-  const [deleteTarget,setDeleteTarget]=useState<Group|null>(null);
-  const {user}=useAuth();
 
   function showToast(msg: string, error = false) {
     setToast(msg);
@@ -75,17 +74,57 @@ export default function GroupsView({
       showToast("No se pudo generar el link. Probá de nuevo.", true);
     }
   }
-  async function handleDelete(){
-    if(!deleteTarget)return;
-    try{
-      await deleteGroup(deleteTarget.id);
-      setDeleteTarget(null);
-      await onRefresh();
-      showToast("Grupo eliminado");
-    }catch(err){
-      const raw=err as {message?:string};
-      showToast(raw?.message||"No se pudo eliminar el grupo.",true);
-    }
+
+  const openGroup = groups.find((g) => g.id === openGroupId) || null;
+
+  if (openGroup) {
+    return (
+      <section className="groups-view">
+        <button className="detail-back" onClick={() => setOpenGroupId(null)}>
+          <ArrowLeft size={17} /> Tus grupos
+        </button>
+        <div className="group-detail-head edge">
+          {openGroup.photo_url ? (
+            <img className="group-photo" src={openGroup.photo_url} alt="" />
+          ) : (
+            <span className="group-emoji" style={{ background: openGroup.color }}>{openGroup.emoji}</span>
+          )}
+          <div>
+            <h1>{openGroup.name}</h1>
+            {openGroup.description && <p>{openGroup.description}</p>}
+          </div>
+          <button className="pulse-secondary" onClick={() => handleInvite(openGroup.id)}>
+            <LinkIcon size={15} /> Invitar
+          </button>
+        </div>
+
+        <div className="section-title compact">
+          <div><h2>Integrantes</h2><p>{openGroup.members.length} {openGroup.members.length === 1 ? "persona" : "personas"}</p></div>
+        </div>
+        <div className="group-member-list">
+          {openGroup.members.map((m) => (
+            <div className="person-card edge" key={m.id}>
+              <Avatar initials={initialsOf(m.name)} color={m.avatar_color} src={m.avatar_url} />
+              <span><b>{m.name}</b>{m.id === openGroup.created_by && <small className="owner-tag"><Crown size={11} /> Creador/a</small>}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="section-title compact">
+          <div><h2>Agenda del grupo</h2><p>Disponibilidad compartida para armar el próximo plan</p></div>
+        </div>
+        <AvailabilityView groups={[openGroup]} />
+
+        <AnimatePresence>
+          {toast && (
+            <motion.div className={`toast ${toastError ? "toast-error" : ""}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}>
+              <span>{toastError ? <X /> : <Check />}</span>
+              <div><b>{toast}</b></div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </section>
+    );
   }
 
   return (
@@ -93,7 +132,7 @@ export default function GroupsView({
       <div className="section-title">
         <div>
           <h2>Tus grupos</h2>
-          <p>Familia, la barra, capos... cada uno con su link de invitación</p>
+          <p>Cada grupo tiene su propio link de invitación</p>
         </div>
         <button className="create-desktop" onClick={() => setCreateOpen(true)}>
           <Plus size={19} /> Crear grupo
@@ -106,7 +145,7 @@ export default function GroupsView({
         <div className="empty-state edge">
           <span className="empty-emoji">👥</span>
           <h3>Todavía no tenés grupos</h3>
-          <p>Creá uno para tu barra, tu familia o donde sea, y compartí el link para que se sumen con su cuenta.</p>
+          <p>Creá un grupo y compartí el link para que se sumen con su cuenta.</p>
           <button className="create-submit" onClick={() => setCreateOpen(true)}>
             <Plus size={18} /> Crear mi primer grupo
           </button>
@@ -116,13 +155,12 @@ export default function GroupsView({
       {!loading && groups.length > 0 && (
         <div className="groups-grid">
           {groups.map((g) => (
-            <div className="group-card edge" key={g.id}>
+            <div className="group-card edge" key={g.id} onClick={() => setOpenGroupId(g.id)} role="button" tabIndex={0}>
               <div className="group-card-top">
                 {g.photo_url?<img className="group-photo" src={g.photo_url} alt=""/>:<span className="group-emoji" style={{ background: g.color }}>{g.emoji}</span>}
-                <button className="group-invite" onClick={() => handleInvite(g.id)}>
+                <button className="group-invite" onClick={(e) => { e.stopPropagation(); handleInvite(g.id); }}>
                   <LinkIcon size={14} /> Invitar
                 </button>
-                {g.created_by===user?.id&&<button className="group-delete" onClick={()=>setDeleteTarget(g)} aria-label={`Eliminar ${g.name}`}><Trash2/></button>}
               </div>
               <h3>{g.name}</h3>
               {g.description&&<p className="group-description">{g.description}</p>}
@@ -174,7 +212,7 @@ export default function GroupsView({
                   <span className="emoji-picker">{emoji}</span>
                   <input
                     autoFocus
-                    placeholder="Familia, La barra, Capos..."
+                    placeholder="Nombre del grupo"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                   />
@@ -220,7 +258,6 @@ export default function GroupsView({
           </motion.div>
         )}
       </AnimatePresence>
-      <AnimatePresence>{deleteTarget&&<motion.div className="modal-backdrop" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onMouseDown={e=>e.target===e.currentTarget&&setDeleteTarget(null)}><motion.div className="delete-group-modal edge" initial={{scale:.96,y:15}} animate={{scale:1,y:0}} exit={{scale:.97,y:10}}><span><Trash2/></span><h2>¿Eliminar {deleteTarget.name}?</h2><p>Se eliminarán el grupo, sus invitaciones y la relación entre sus integrantes. Esta acción no se puede deshacer.</p><div><button onClick={()=>setDeleteTarget(null)}>Cancelar</button><button className="danger" onClick={handleDelete}>Eliminar grupo</button></div></motion.div></motion.div>}</AnimatePresence>
 
       <AnimatePresence>
         {toast && (
