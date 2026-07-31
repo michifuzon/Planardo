@@ -178,16 +178,19 @@ export default function Page() {
   async function addAvail() {
     if (!selectedDay || availSaving) return;
     const isFullDay = !availFrom && !availTo;
-    const duplicate = dayAvailability.some(b =>
-      b.status === availStatus &&
-      (isFullDay ? (!b.time_from && !b.time_to) : (b.time_from === availFrom + ":00" && b.time_to === availTo + ":00"))
-    );
-    if (duplicate) {
-      showAvailError(isFullDay ? "Ya marcaste ese estado para todo el día." : "Ya tenés un bloque igual en ese horario.");
-      return;
+    if (!isFullDay) {
+      const duplicate = dayAvailability.some(b =>
+        b.status === availStatus && b.time_from === availFrom + ":00" && b.time_to === availTo + ":00"
+      );
+      if (duplicate) { showAvailError("Ya tenés un bloque igual en ese horario."); return; }
     }
     setAvailSaving(true);
     try {
+      if (isFullDay) {
+        // "todo el día" es excluyente: reemplaza cualquier otro estado de día completo ya cargado.
+        const existingFullDay = dayAvailability.filter(b => !b.time_from && !b.time_to);
+        await Promise.all(existingFullDay.map(b => removeAvailabilityBlock(b.id)));
+      }
       await addAvailabilityBlock(dateKey(selectedDay), availStatus, availFrom || undefined, availTo || undefined);
       setAvailFrom(""); setAvailTo("");
       refreshMonthAvailability();
@@ -261,7 +264,7 @@ export default function Page() {
         </header>
 
         <div className="page-content">
-          {selectedPlan && <PlanDetail id={selectedPlan} onBack={()=>setSelectedPlan(null)}/>}
+          {selectedPlan && <PlanDetail id={selectedPlan} onBack={()=>{setSelectedPlan(null);fetchMyPlans().then(setPlans).catch(()=>{});}} onDeleted={()=>fetchMyPlans().then(setPlans).catch(()=>{})}/>}
           {!selectedPlan && <>
           {active === "home" && (
             <>
@@ -448,10 +451,9 @@ export default function Page() {
         </div>
       </section>
 
-      <button className="fab" onClick={()=>setModal(true)} aria-label="Crear Planardo"><Plus/></button>
+      {active !== "groups" && <button className="fab" onClick={()=>setModal(true)} aria-label="Crear Planardo"><Plus/></button>}
       <nav className="bottom-nav">
         {NAV_ITEMS.map(([id,Icon,label])=><button key={id} className={active===id?"active":""} onClick={()=>{setActive(id);setSelectedPlan(null)}}><Icon size={20}/><span>{label}</span></button>)}
-        <button onClick={()=>setActive("profile")} className={active==="profile"?"active":""}><span className="nav-avatar">{initials}</span><span>Perfil</span></button>
       </nav>
 
       <AnimatePresence>

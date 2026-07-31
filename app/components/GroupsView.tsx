@@ -100,7 +100,7 @@ export default function GroupsView({
 
   if (openGroup) {
     return (
-      <section className="groups-view">
+      <section className="groups-view" key={`detail-${openGroup.id}`}>
         <button className="detail-back" onClick={() => setOpenGroupId(null)}>
           <ArrowLeft size={17} /> Tus grupos
         </button>
@@ -162,7 +162,7 @@ export default function GroupsView({
   }
 
   return (
-    <section className="groups-view">
+    <section className="groups-view" key="list">
       <div className="section-title">
         <div>
           <h2>Tus grupos</h2>

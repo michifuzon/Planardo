@@ -77,7 +77,7 @@ export default function JoinClient() {
             <p className="auth-eyebrow">TE INVITARON A</p>
             <h1>{invite.group_name}</h1>
             <p className="auth-copy">Sumate para ver los planes y coordinar con el grupo.</p>
-            <button className="auth-submit" onClick={join} disabled={state === "joining"}>
+            <button className="auth-submit join-cta" onClick={join} disabled={state === "joining"}>
               {state === "joining" ? "Uniéndote…" : "Unirme al grupo"}
             </button>
           </>
