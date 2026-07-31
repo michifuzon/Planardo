@@ -412,9 +412,12 @@ export default function Page() {
                             <option value="maybe">🟡 Tal vez</option>
                             <option value="available">🟢 Libre</option>
                           </select>
-                          <input type="time" value={availFrom} onChange={e=>setAvailFrom(e.target.value)} aria-label="Desde"/>
-                          <input type="time" value={availTo} onChange={e=>setAvailTo(e.target.value)} aria-label="Hasta"/>
-                          <button className="day-avail-add" onClick={addAvail} disabled={availSaving}><Plus size={15}/></button>
+                          <div className="day-avail-times">
+                            <input type="time" value={availFrom} onChange={e=>setAvailFrom(e.target.value)} aria-label="Desde"/>
+                            <span>a</span>
+                            <input type="time" value={availTo} onChange={e=>setAvailTo(e.target.value)} aria-label="Hasta"/>
+                            <button className="day-avail-add" onClick={addAvail} disabled={availSaving}><Plus size={15}/></button>
+                          </div>
                         </div>
                         {availError ? <p className="availability-note avail-error-note">{availError}</p> : <p className="availability-note">Dejá el horario vacío para marcar el día completo.</p>}
                       </div>

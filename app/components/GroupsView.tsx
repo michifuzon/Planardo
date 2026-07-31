@@ -1,11 +1,12 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Check, Crown, Link as LinkIcon, Plus, Users, X } from "lucide-react";
+import { ArrowLeft, Check, Crown, Link as LinkIcon, Plus, Trash2, Users, X } from "lucide-react";
 import { useState } from "react";
-import { createGroup, createInvite, type Group } from "@/lib/groups";
+import { createGroup, createInvite, deleteGroup, type Group } from "@/lib/groups";
 import Avatar from "./Avatar";
 import AvailabilityView from "./AvailabilityView";
+import { useAuth } from "./AuthProvider";
 
 const EMOJIS = ["👥", "💙", "🎉", "🏠", "🌮", "⚡", "🎮", "⭐"];
 const COLORS = ["#8b5cf6", "#f97316", "#06b6d4", "#22c55e", "#ec4899"];
@@ -23,7 +24,10 @@ export default function GroupsView({
   loading: boolean;
   onRefresh: () => void;
 }) {
+  const { user } = useAuth();
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState(EMOJIS[0]);
@@ -75,6 +79,23 @@ export default function GroupsView({
     }
   }
 
+  async function handleDelete() {
+    if (!confirmDeleteId || deleting) return;
+    setDeleting(true);
+    try {
+      await deleteGroup(confirmDeleteId);
+      setConfirmDeleteId(null);
+      setOpenGroupId(null);
+      onRefresh();
+      showToast("Grupo eliminado");
+    } catch (err) {
+      const raw = err as { message?: string };
+      showToast(`No se pudo eliminar. ${err instanceof Error ? err.message : raw?.message || ""}`, true);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const openGroup = groups.find((g) => g.id === openGroupId) || null;
 
   if (openGroup) {
@@ -96,6 +117,11 @@ export default function GroupsView({
           <button className="pulse-secondary" onClick={() => handleInvite(openGroup.id)}>
             <LinkIcon size={15} /> Invitar
           </button>
+          {openGroup.created_by === user?.id && (
+            <button className="group-delete" onClick={() => setConfirmDeleteId(openGroup.id)} aria-label="Eliminar grupo">
+              <Trash2 size={15} />
+            </button>
+          )}
         </div>
 
         <div className="section-title compact">
@@ -114,6 +140,14 @@ export default function GroupsView({
           <div><h2>Agenda del grupo</h2><p>Disponibilidad compartida para armar el próximo plan</p></div>
         </div>
         <AvailabilityView groups={[openGroup]} />
+
+        {confirmDeleteId && (
+          <div className="confirm-remove edge">
+            <div><b>¿Eliminar {openGroup.name}?</b><p>Se borra para todos los integrantes junto con sus planes e invitaciones. No se puede deshacer.</p></div>
+            <button onClick={() => setConfirmDeleteId(null)}>Cancelar</button>
+            <button className="danger" onClick={handleDelete} disabled={deleting}>{deleting ? "Eliminando…" : "Eliminar"}</button>
+          </div>
+        )}
 
         <AnimatePresence>
           {toast && (
