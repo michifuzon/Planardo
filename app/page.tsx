@@ -93,14 +93,14 @@ export default function Page() {
 
   useEffect(() => {
     if (user || !supabaseEnabled) refreshGroups();
-  }, [user, refreshGroups]);
+  }, [user?.id, supabaseEnabled, refreshGroups]);
 
   useEffect(() => {
     if (user && supabaseEnabled) fetchMyPlans().then(setPlans).catch(()=>setPlans([]));
-  }, [user]);
-  useEffect(()=>{if(user&&supabaseEnabled)fetchMyProfile().then(setMyProfile).catch(()=>setMyProfile(null))},[user]);
-  useEffect(()=>{if(user&&supabaseEnabled)fetchNotifications().then(setNotifications).catch(()=>setNotifications([]))},[user]);
-  useEffect(()=>{if(user&&supabaseEnabled)fetchFriendships().then(rows=>setDirectFriends(rows.filter((r:any)=>r.status==="accepted").map((r:any)=>r.person))).catch(()=>setDirectFriends([]))},[user]);
+  }, [user?.id]);
+  useEffect(()=>{if(user&&supabaseEnabled)fetchMyProfile().then(setMyProfile).catch(()=>setMyProfile(null))},[user?.id]);
+  useEffect(()=>{if(user&&supabaseEnabled)fetchNotifications().then(setNotifications).catch(()=>setNotifications([]))},[user?.id]);
+  useEffect(()=>{if(user&&supabaseEnabled)fetchFriendships().then(rows=>setDirectFriends(rows.filter((r:any)=>r.status==="accepted").map((r:any)=>r.person))).catch(()=>setDirectFriends([]))},[user?.id]);
 
   useEffect(() => {
     if (!groups.length) { setTodayBusy({}); return; }
