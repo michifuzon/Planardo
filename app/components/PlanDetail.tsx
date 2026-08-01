@@ -52,7 +52,7 @@ export default function PlanDetail({id,onBack,onDeleted,onOpenProfile,isAdmin,fr
   const [itemError,setItemError]=useState("");
   const [editCover,setEditCover]=useState<File>();
   const [shareToast,setShareToast]=useState(false);
-  const refresh=useCallback(()=>fetchPlanDetail(id).then(setPlan),[id]);
+  const refresh=useCallback(()=>fetchPlanDetail(id).then(setPlan).catch(err=>console.error("No se pudo refrescar el plan",err)),[id]);
   const load=useCallback(()=>{setLoading(true);refresh().finally(()=>setLoading(false));},[refresh]);
   useEffect(()=>{load()},[load]);
 

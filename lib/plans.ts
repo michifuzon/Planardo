@@ -150,10 +150,14 @@ export async function addPlanItem(planId:string,label:string){
 }
 export async function claimPlanItem(id:string,claim:boolean){
   const db=client(); const {data:auth}=await db.auth.getUser();
-  const {error}=await db.from("plan_items").update({claimed_by:claim?auth.user?.id:null}).eq("id",id); if(error)throw error;
+  const {data,error}=await db.from("plan_items").update({claimed_by:claim?auth.user?.id:null}).eq("id",id).select();
+  if(error)throw error;
+  if(!data||!data.length)throw new Error("No se pudo actualizar el item (revisá los permisos).");
 }
 export async function deletePlanItem(id:string){
-  const {error}=await client().from("plan_items").delete().eq("id",id); if(error)throw error;
+  const {data,error}=await client().from("plan_items").delete().eq("id",id).select();
+  if(error)throw error;
+  if(!data||!data.length)throw new Error("No se pudo eliminar el item (revisá los permisos).");
 }
 export async function addTimelineItem(planId:string,title:string,startsAt:string){
   const {error}=await client().from("plan_timeline").insert({plan_id:planId,title,starts_at:new Date(startsAt).toISOString()}); if(error)throw error;
