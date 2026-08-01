@@ -13,15 +13,25 @@ export default function GroupChat({ groupId }: { groupId: string }) {
   const [messages, setMessages] = useState<any[]>([]);
   const [composer, setComposer] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
 
   const load = () => fetchGroupMessages(groupId).then(setMessages).catch(() => setMessages([]));
   useEffect(() => { setLoading(true); load().finally(() => setLoading(false)); }, [groupId]);
 
   async function send() {
-    if (!composer.trim()) return;
-    await sendGroupMessage(groupId, composer.trim());
-    setComposer("");
-    load();
+    if (!composer.trim() || sending) return;
+    setSending(true);
+    setError("");
+    try {
+      await sendGroupMessage(groupId, composer.trim());
+      setComposer("");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo enviar el mensaje.");
+    } finally {
+      setSending(false);
+    }
   }
 
   if (loading) return <div className="chat-panel edge"><div className="messages"><div className="auth-loading-mark" style={{ margin: "40px auto" }} /></div></div>;
@@ -43,9 +53,10 @@ export default function GroupChat({ groupId }: { groupId: string }) {
         })}
         {!messages.length && <p className="detail-empty">El chat del grupo arranca con el primer mensaje.</p>}
       </div>
+      {error && <p className="quick-error">{error}</p>}
       <div className="chat-composer">
         <input value={composer} onChange={(e) => setComposer(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Escribí un mensaje al grupo…" />
-        <button onClick={send}><Send /></button>
+        <button type="button" onClick={send} disabled={sending}><Send /></button>
       </div>
     </div>
   );

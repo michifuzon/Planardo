@@ -264,7 +264,7 @@ export default function Page() {
         </header>
 
         <div className="page-content">
-          {selectedPlan && <PlanDetail id={selectedPlan} onBack={()=>{setSelectedPlan(null);fetchMyPlans().then(setPlans).catch(()=>{});}} onDeleted={()=>fetchMyPlans().then(setPlans).catch(()=>{})} onOpenProfile={openProfile} isAdmin={!!myProfile?.is_admin}/>}
+          {selectedPlan && <PlanDetail id={selectedPlan} onBack={()=>{setSelectedPlan(null);fetchMyPlans().then(setPlans).catch(()=>{});}} onDeleted={()=>fetchMyPlans().then(setPlans).catch(()=>{})} onOpenProfile={openProfile} isAdmin={!!myProfile?.is_admin} friends={directFriends} groups={groups}/>}
           {!selectedPlan && <>
           {active === "home" && (
             <>

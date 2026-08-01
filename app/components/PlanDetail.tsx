@@ -4,14 +4,15 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, CalendarDays, CalendarPlus, Car, Check, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, ExternalLink, ImagePlus, ListChecks, MapPin, MessageCircle, Pencil, Plus, Send, Share2, Trash2, Users, Vote, X, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  addChecklistItem, addExpense, addPlanItem, addPoll, addTimelineItem, claimPlanItem,
+  addChecklistItem, addExpense, addPlanItem, addPlanInvitees, addPoll, addTimelineItem, claimPlanItem,
   addPlanComment, cancelPlan, createPlanInvite, deleteChecklistItem, deleteExpense, deletePlanItem, deletePoll,
-  fetchPlanDetail, joinPlanRide, leavePlanRide, removePlanTransport, respondToPlan, sendPlanMessage,
-  setPlanTransport, toggleChecklistItem, updatePlan, uploadPlanPhoto, votePoll,
+  fetchPlanDetail, joinPlanRide, leavePlanRide, removePlanMember, removePlanTransport, respondToPlan, sendPlanMessage,
+  setPlanTransport, toggleChecklistItem, updatePlan, updatePlanGroup, uploadPlanPhoto, votePoll,
 } from "@/lib/plans";
 import { cap } from "@/lib/format";
 import { downloadPlanICS } from "@/lib/ics";
 import { addAvailabilityBlock, removeAvailabilityForPlan } from "@/lib/availability";
+import type { Group, Profile } from "@/lib/groups";
 import Avatar from "./Avatar";
 import { useAuth } from "./AuthProvider";
 
@@ -25,7 +26,7 @@ function toLocalParts(iso:string){const d=new Date(iso);return {date:`${d.getFul
 const PLAN_TYPES:[string,string][]=[["food","🍕 Cena / comida"],["home","🏠 Casa"],["camping","🏕️ Camping"],["trip","✈️ Viaje"],["birthday","🎂 Cumpleaños"],["bar","🍻 Bar"],["cinema","🎬 Cine"],["outdoor","🏖️ Aire libre"],["sport","🏃 Deporte"],["gaming","🎮 Gaming"],["study","📚 Estudio"],["party","🎉 Fiesta"],["other","✨ Otro"]];
 const PLAN_COLORS=["#8b5cf6","#f97316","#06b6d4","#22c55e","#ec4899"];
 
-export default function PlanDetail({id,onBack,onDeleted,onOpenProfile,isAdmin}:{id:string;onBack:()=>void;onDeleted?:()=>void;onOpenProfile?:(id:string)=>void;isAdmin?:boolean}) {
+export default function PlanDetail({id,onBack,onDeleted,onOpenProfile,isAdmin,friends=[],groups=[]}:{id:string;onBack:()=>void;onDeleted?:()=>void;onOpenProfile?:(id:string)=>void;isAdmin?:boolean;friends?:Profile[];groups?:Group[]}) {
   const {user}=useAuth();
   const [plan,setPlan]=useState<any>(null);
   const [tab,setTab]=useState<string>("overview");
@@ -46,6 +47,10 @@ export default function PlanDetail({id,onBack,onDeleted,onOpenProfile,isAdmin}:{
   const [editSaving,setEditSaving]=useState(false);
   const [transportPrompt,setTransportPrompt]=useState<string|null>(null);
   const [transportSeats,setTransportSeats]=useState(0);
+  const [invitePicked,setInvitePicked]=useState<string[]>([]);
+  const [groupSaving,setGroupSaving]=useState(false);
+  const [itemError,setItemError]=useState("");
+  const [editCover,setEditCover]=useState<File>();
   const [shareToast,setShareToast]=useState(false);
   const refresh=useCallback(()=>fetchPlanDetail(id).then(setPlan),[id]);
   const load=useCallback(()=>{setLoading(true);refresh().finally(()=>setLoading(false));},[refresh]);
@@ -60,6 +65,8 @@ export default function PlanDetail({id,onBack,onDeleted,onOpenProfile,isAdmin}:{
   if(!plan)return <div className="empty-state"><h3>No encontramos este Planardo</h3><button onClick={onBack}>Volver</button></div>;
   const start=new Date(plan.starts_at), end=plan.ends_at?new Date(plan.ends_at):null;
   const days=end?Math.max(1,Math.round((end.getTime()-start.getTime())/86400000)+1):1;
+  const canManage=plan.created_by===user?.id||!!isAdmin;
+  const invitableFriends=friends.filter(f=>!plan.plan_members.some((m:any)=>m.user_id===f.id));
 
   function openEdit(){
     const startParts=toLocalParts(plan.starts_at);
@@ -81,12 +88,33 @@ export default function PlanDetail({id,onBack,onDeleted,onOpenProfile,isAdmin}:{
       window.setTimeout(()=>setShareToast(false),3200);
     }catch{}
   }
+  async function changeGroup(groupId:string){
+    if(groupSaving)return;
+    setGroupSaving(true);
+    try{
+      await updatePlanGroup(id,groupId||null);
+      const g=groups.find(g=>g.id===groupId);
+      if(g)await addPlanInvitees(id,g.members.map(m=>m.id));
+      refresh();
+    }finally{setGroupSaving(false)}
+  }
+  async function inviteMore(){
+    if(!invitePicked.length)return;
+    await addPlanInvitees(id,invitePicked);
+    setInvitePicked([]);
+    refresh();
+  }
+  async function removeGuest(userId:string){
+    await removePlanMember(id,userId);
+    refresh();
+  }
   async function saveEdit(){
     if(!editForm?.name?.trim()||!editForm?.date||editSaving)return;
     setEditSaving(true);
     try{
-      await updatePlan(id,editForm);
+      await updatePlan(id,editForm,editCover);
       setEditOpen(false);
+      setEditCover(undefined);
       refresh();
     }finally{setEditSaving(false)}
   }
@@ -152,10 +180,32 @@ export default function PlanDetail({id,onBack,onDeleted,onOpenProfile,isAdmin}:{
         <article className="detail-card edge"><div className="detail-card-head"><div><p className="eyebrow">CONTEXTO</p><h3>Sobre el plan</h3></div></div><p className="detail-copy">{plan.description||"Todavía no agregaron una descripción."}</p>{plan.notes&&<div className="plan-note"><b>Nota importante</b><p>{plan.notes}</p></div>}</article>
         <article className="detail-card edge"><div className="detail-card-head"><div><p className="eyebrow">ITINERARIO</p><h3>Línea de tiempo</h3></div><button onClick={()=>setQuick({type:"timeline",open:true})}><Plus/></button></div>{plan.timeline.length?plan.timeline.map((x:any)=><div className="timeline-row" key={x.id}><time>{new Date(x.starts_at).toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}</time><i/><span><b>{x.title}</b>{x.place_name&&<small>{x.place_name}</small>}</span></div>):<p className="detail-empty">Agregá actividades, horarios y paradas.</p>}</article>
       </div>}
-      {tab==="people"&&<><div className="attendance-summary">{[["going","Confirmados",stats.going],["maybe","Tal vez",stats.maybe],["pending","Pendientes",stats.pending],["declined","No pueden",stats.declined]].map(([key,label,count])=><div key={key as string} className={key as string}><b>{count}</b><span>{label}</span></div>)}</div><div className="guest-grid">{plan.plan_members.map((m:any)=><div className="guest-card edge" key={m.user_id} onClick={()=>onOpenProfile?.(m.user_id)} style={onOpenProfile?{cursor:"pointer"}:undefined}><Avatar initials={initials(m.profiles.name)} color={m.profiles.avatar_color} src={m.profiles.avatar_url}/><span><b>{m.profiles.name}</b><small>@{m.profiles.username}</small></span><i className={`guest-status ${m.response}`}/></div>)}</div></>}
+      {tab==="people"&&<><div className="attendance-summary">{[["going","Confirmados",stats.going],["maybe","Tal vez",stats.maybe],["pending","Pendientes",stats.pending],["declined","No pueden",stats.declined]].map(([key,label,count])=><div key={key as string} className={key as string}><b>{count}</b><span>{label}</span></div>)}</div><div className="guest-grid">{plan.plan_members.map((m:any)=><div className="guest-card edge" key={m.user_id} onClick={()=>onOpenProfile?.(m.user_id)} style={onOpenProfile?{cursor:"pointer"}:undefined}><Avatar initials={initials(m.profiles.name)} color={m.profiles.avatar_color} src={m.profiles.avatar_url}/><span><b>{m.profiles.name}</b><small>@{m.profiles.username}</small></span><i className={`guest-status ${m.response}`}/>{canManage&&m.user_id!==plan.created_by&&<button type="button" className="row-delete" onClick={(e)=>{e.stopPropagation();removeGuest(m.user_id)}} aria-label="Quitar del plan"><X size={13}/></button>}</div>)}</div>
+      {canManage&&<div className="manage-invitees edge">
+        <div className="manage-invitees-row">
+          <span>Grupo del plan</span>
+          <select value={plan.group_id||""} disabled={groupSaving} onChange={e=>changeGroup(e.target.value)}>
+            <option value="">Sin grupo</option>
+            {groups.map(g=><option key={g.id} value={g.id}>{g.emoji} {g.name}</option>)}
+          </select>
+        </div>
+        {invitableFriends.length>0&&<div className="manage-invitees-row">
+          <span>Invitar más gente</span>
+          <div className="invitee-picker">
+            {invitableFriends.map(f=>{
+              const on=invitePicked.includes(f.id);
+              return <button type="button" key={f.id} className={`invitee-chip ${on?"on":""}`} onClick={()=>setInvitePicked(list=>on?list.filter(x=>x!==f.id):[...list,f.id])}>
+                <Avatar initials={initials(f.name)} color={f.avatar_color} src={f.avatar_url} small/><span>{f.name}</span>{on&&<Check size={13}/>}
+              </button>;
+            })}
+          </div>
+          {invitePicked.length>0&&<button type="button" className="inline-create" onClick={inviteMore}><Plus size={14}/> Invitar</button>}
+        </div>}
+      </div>}
+      </>}
       {tab==="organize"&&<div className="detail-grid">
         <article className="detail-card edge"><div className="detail-card-head"><div><p className="eyebrow">CHECKLIST</p><h3>Lo que falta hacer</h3></div><button onClick={()=>setQuick({type:"check",open:true})}><Plus/></button></div>{plan.checklist.map((x:any)=><div className={`check-row ${x.completed?"done":""}`} key={x.id}><button type="button" className="check-toggle" onClick={async()=>{await toggleChecklistItem(x.id,!x.completed);refresh()}}>{x.completed?<CheckCircle2/>:<span/>}<b>{x.label}</b></button><button type="button" className="row-delete" onClick={async()=>{await deleteChecklistItem(x.id);refresh()}} aria-label="Eliminar tarea"><Trash2 size={13}/></button></div>)}{!plan.checklist.length&&<p className="detail-empty">Todo bajo control. Agregá la primera tarea.</p>}</article>
-        <article className="detail-card edge"><div className="detail-card-head"><div><p className="eyebrow">QUIÉN LLEVA QUÉ</p><h3>Lista colaborativa</h3></div><button onClick={()=>setQuick({type:"item",open:true})}><Plus/></button></div>{plan.items.map((x:any)=>{const mine=x.claimed_by===user?.id;const taken=!!x.claimed_by&&!mine;const canDelete=x.created_by===user?.id||plan.created_by===user?.id||isAdmin;return <div className={`bring-row ${x.claimed_by?"claimed":""} ${taken?"taken":""}`} key={x.id}><button type="button" className="bring-toggle" disabled={taken} onClick={async()=>{if(taken)return;await claimPlanItem(x.id,!x.claimed_by);refresh()}}><span>{x.claimed_by&&<Check/>}</span><b>{x.label}</b><small>{taken?x.profiles?.name:mine?"Lo llevás vos":"+ Anotarme"}</small></button>{canDelete&&<button type="button" className="row-delete" onClick={async()=>{await deletePlanItem(x.id);refresh()}} aria-label="Eliminar item"><Trash2 size={13}/></button>}</div>})}{!plan.items.length&&<p className="detail-empty">Agregá bebidas, comida o cualquier cosa necesaria.</p>}</article>
+        <article className="detail-card edge"><div className="detail-card-head"><div><p className="eyebrow">QUIÉN LLEVA QUÉ</p><h3>Lista colaborativa</h3></div><button onClick={()=>setQuick({type:"item",open:true})}><Plus/></button></div>{itemError&&<p className="quick-error">{itemError}</p>}{plan.items.map((x:any)=>{const mine=x.claimed_by===user?.id;const taken=!!x.claimed_by&&!mine;const canDelete=x.created_by===user?.id||plan.created_by===user?.id||isAdmin;return <div className={`bring-row ${x.claimed_by?"claimed":""} ${taken?"taken":""}`} key={x.id}><button type="button" className="bring-toggle" disabled={taken} onClick={async()=>{if(taken)return;setItemError("");try{await claimPlanItem(x.id,!x.claimed_by);refresh()}catch(error){setItemError(error instanceof Error?error.message:"No se pudo anotar.")}}}><span>{x.claimed_by&&<Check/>}</span><b>{x.label}</b><small>{taken?x.profiles?.name:mine?"Lo llevás vos":"+ Anotarme"}</small></button>{canDelete&&<button type="button" className="row-delete" onClick={async()=>{try{await deletePlanItem(x.id);refresh()}catch(error){setItemError(error instanceof Error?error.message:"No se pudo eliminar.")}}} aria-label="Eliminar item"><Trash2 size={13}/></button>}</div>})}{!plan.items.length&&<p className="detail-empty">Agregá bebidas, comida o cualquier cosa necesaria.</p>}</article>
         <article className="detail-card edge"><div className="detail-card-head"><div><p className="eyebrow">TRANSPORTE</p><h3>¿Cómo llega cada uno?</h3></div><Car size={17}/></div><div className="transport-choices">{[["car","🚗 Auto"],["rideshare","🚕 Uber"],["walk","🚶 Caminando"],["bus","🚌 Colectivo"],["bike","🚲 Bici"]].map(([mode,label])=><button key={mode} onClick={()=>{if(mode==="car"||mode==="rideshare"){setTransportSeats(0);setTransportPrompt(mode)}else{setPlanTransport(id,mode,0).then(refresh)}}}>{label}</button>)}</div>
         {transportPrompt&&<div className="transport-seats-prompt"><span>¿Cuántos lugares libres tenés en tu {transportPrompt==="car"?"auto":"Uber"}? Poné 0 si vas solo/a y no ofrecés lugar.</span><div className="transport-seats-row"><button type="button" onClick={()=>setTransportSeats(s=>Math.max(0,s-1))}>−</button><b>{transportSeats}</b><button type="button" onClick={()=>setTransportSeats(s=>Math.min(8,s+1))}>+</button><button type="button" onClick={async()=>{await setPlanTransport(id,transportPrompt,transportSeats);setTransportPrompt(null);refresh()}}>Listo</button></div></div>}{plan.transport.map((x:any)=>{
           const mine=x.user_id===user?.id;
@@ -190,6 +240,8 @@ export default function PlanDetail({id,onBack,onDeleted,onOpenProfile,isAdmin}:{
       <div className="modal-head"><div><p className="eyebrow">EDITAR</p><h2>Editá tu Planardo</h2></div><button onClick={()=>setEditOpen(false)}><X/></button></div>
       <div className="form">
         <label className="main-input"><span className="emoji-picker">{editForm.emoji}</span><input autoFocus placeholder="¿Qué plan pinta?" value={editForm.name} onChange={e=>setEditForm({...editForm,name:e.target.value})}/></label>
+        <div className="color-select emoji-select"><span>Emoji</span><div>{["🎉","🥩","🎂","✈️","🎮","🍽️","🏠","⚽","🎬","🍻","📚","🏖️","🎊","🌮","☕","🎵"].map(e=><button type="button" key={e} className={editForm.emoji===e?"selected emoji-opt":"emoji-opt"} onClick={()=>setEditForm({...editForm,emoji:e})}>{e}</button>)}</div></div>
+        <label className="field"><span>Foto de portada</span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>setEditCover(e.target.files?.[0])}/></label>
         <div className="field-row">
           <label><span><CalendarDays size={17}/> Fecha</span><input type="date" value={editForm.date} onChange={e=>setEditForm({...editForm,date:e.target.value})}/></label>
           <label><span><Clock3 size={17}/> Hora</span><input type="time" value={editForm.time} onChange={e=>setEditForm({...editForm,time:e.target.value})}/></label>

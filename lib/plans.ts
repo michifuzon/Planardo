@@ -47,18 +47,42 @@ export async function createPlan(input: PlanInput) {
   return data;
 }
 
-export async function updatePlan(planId: string, input: Omit<PlanInput, "invitee_ids" | "creation_key" | "cover_file">) {
+export async function updatePlan(planId: string, input: Omit<PlanInput, "invitee_ids" | "creation_key" | "cover_file">, coverFile?: File) {
   const db = client();
   const starts_at = new Date(`${input.date}T${input.time}:00`).toISOString();
   const ends_at = input.end_date ? new Date(`${input.end_date}T${input.end_time || input.time}:00`).toISOString() : null;
+  let cover_url: string | undefined;
+  if (coverFile) {
+    const ext = coverFile.name.split(".").pop() || "jpg";
+    const path = `${planId}/cover-${Date.now()}.${ext}`;
+    const { error: uploadError } = await db.storage.from("plan-media").upload(path, coverFile);
+    if (uploadError) throw uploadError;
+    cover_url = db.storage.from("plan-media").getPublicUrl(path).data.publicUrl;
+  }
   const { data, error } = await db.from("plans").update({
     name: input.name, emoji: input.emoji, starts_at, ends_at,
     place_name: input.place_name || null, description: input.description || null,
     color: input.color, plan_type: input.plan_type || "other",
     location_url: input.location_url || null, notes: input.notes || null,
+    ...(cover_url ? { cover_url } : {}),
   }).eq("id", planId).select().single();
   if (error) throw error;
   return data;
+}
+
+export async function updatePlanGroup(planId: string, groupId: string | null) {
+  const { error } = await client().from("plans").update({ group_id: groupId }).eq("id", planId);
+  if (error) throw error;
+}
+export async function addPlanInvitees(planId: string, userIds: string[]) {
+  if (!userIds.length) return;
+  const { error } = await client().from("plan_members")
+    .upsert(userIds.map(user_id => ({ plan_id: planId, user_id })), { onConflict: "plan_id,user_id", ignoreDuplicates: true });
+  if (error) throw error;
+}
+export async function removePlanMember(planId: string, userId: string) {
+  const { error } = await client().from("plan_members").delete().eq("plan_id", planId).eq("user_id", userId);
+  if (error) throw error;
 }
 
 export async function fetchMyPlans() {

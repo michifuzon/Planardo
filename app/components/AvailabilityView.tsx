@@ -52,7 +52,7 @@ export default function AvailabilityView({groups,plans=[],onSelectPlan}:{groups:
   const busyRangesOn=(userId:string,day:Date)=>{
     const from=dayStart(day),until=new Date(from);until.setDate(until.getDate()+1);
     return busy.filter(row=>row.user_id===userId&&row.busy_from&&new Date(row.busy_from)<until&&new Date(row.busy_until)>from)
-      .map(row=>({from:new Date(row.busy_from),to:new Date(row.busy_until)}));
+      .map(row=>({from:new Date(row.busy_from),to:new Date(row.busy_until),planName:row.plan_name as string|null,planEmoji:row.plan_emoji as string|null}));
   };
   const isBusy=(userId:string,day:Date)=>busyRangesOn(userId,day).length>0;
   const fmtTime=(d:Date)=>d.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
@@ -60,9 +60,11 @@ export default function AvailabilityView({groups,plans=[],onSelectPlan}:{groups:
     const from=dayStart(day),until=new Date(from);until.setDate(until.getDate()+1);
     const ranges=busyRangesOn(userId,day);
     if(!ranges.length)return "Disponible todo el día";
-    const fullDay=ranges.some(r=>r.from<=from&&r.to>=until);
-    if(fullDay)return "Ocupado todo el día";
-    return ranges.map(r=>`Ocupado ${fmtTime(r.from<from?from:r.from)}–${fmtTime(r.to>until?until:r.to)}`).join(" · ");
+    return ranges.map(r=>{
+      if(r.planName)return `Va a ${r.planEmoji||"🎉"} ${r.planName}`;
+      const fullDay=r.from<=from&&r.to>=until;
+      return fullDay?"Ocupado todo el día":`Ocupado ${fmtTime(r.from<from?from:r.from)}–${fmtTime(r.to>until?until:r.to)}`;
+    }).join(" · ");
   };
   const freeOn=(day:Date)=>members.filter(m=>!isBusy(m.id,day));
   const scores=week.map(day=>({day,free:freeOn(day).length}));
