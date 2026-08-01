@@ -66,6 +66,7 @@ export default function Page() {
   const [availTo, setAvailTo] = useState("");
   const [availSaving, setAvailSaving] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  useEffect(() => { if (selectedPlan) window.scrollTo({ top: 0 }); }, [selectedPlan]);
   const [notifications,setNotifications]=useState<any[]>([]);
   const [notificationsOpen,setNotificationsOpen]=useState(false);
   const [planSaving, setPlanSaving] = useState(false);

@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Check, Crown, Link as LinkIcon, Pencil, Plus, Trash2, Users, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createGroup, createInvite, deleteGroup, updateGroup, type Group } from "@/lib/groups";
 import Avatar from "./Avatar";
 import AvailabilityView from "./AvailabilityView";
@@ -122,124 +122,119 @@ export default function GroupsView({
     }
   }
 
+  useEffect(() => {
+    if (openGroupId) window.scrollTo({ top: 0 });
+  }, [openGroupId]);
+
   const openGroup = groups.find((g) => g.id === openGroupId) || null;
 
-  if (openGroup) {
-    return (
-      <section className="groups-view" key={`detail-${openGroup.id}`}>
-        <button className="detail-back" onClick={() => setOpenGroupId(null)}>
-          <ArrowLeft size={17} /> Tus grupos
-        </button>
-        <div className="group-detail-head edge">
-          {openGroup.photo_url ? (
-            <img className="group-photo" src={openGroup.photo_url} alt="" />
-          ) : (
-            <span className="group-emoji" style={{ background: openGroup.color }}>{openGroup.emoji}</span>
-          )}
-          <div>
-            <h1>{openGroup.name}</h1>
-            {openGroup.description && <p>{openGroup.description}</p>}
-          </div>
-          <button className="pulse-secondary" onClick={() => handleInvite(openGroup.id)}>
-            <LinkIcon size={15} /> Invitar
-          </button>
-          {openGroup.created_by === user?.id && (
-            <>
-              <button className="group-delete" onClick={() => openEdit(openGroup)} aria-label="Editar grupo">
-                <Pencil size={15} />
-              </button>
-              <button className="group-delete" onClick={() => setConfirmDeleteId(openGroup.id)} aria-label="Eliminar grupo">
-                <Trash2 size={15} />
-              </button>
-            </>
-          )}
-        </div>
-
-        <div className="section-title compact">
-          <div><h2>Integrantes</h2><p>{openGroup.members.length} {openGroup.members.length === 1 ? "persona" : "personas"}</p></div>
-        </div>
-        <div className="group-member-list">
-          {openGroup.members.map((m) => (
-            <div className="person-card edge" key={m.id}>
-              <Avatar initials={initialsOf(m.name)} color={m.avatar_color} src={m.avatar_url} />
-              <span><b>{m.name}</b>{m.id === openGroup.created_by && <small className="owner-tag"><Crown size={11} /> Creador/a</small>}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="section-title compact">
-          <div><h2>Agenda del grupo</h2><p>Disponibilidad compartida para armar el próximo plan</p></div>
-        </div>
-        <AvailabilityView groups={[openGroup]} />
-
-        {confirmDeleteId && (
-          <div className="confirm-remove edge">
-            <div><b>¿Eliminar {openGroup.name}?</b><p>Se borra para todos los integrantes junto con sus planes e invitaciones. No se puede deshacer.</p></div>
-            <button onClick={() => setConfirmDeleteId(null)}>Cancelar</button>
-            <button className="danger" onClick={handleDelete} disabled={deleting}>{deleting ? "Eliminando…" : "Eliminar"}</button>
-          </div>
-        )}
-
-        <AnimatePresence>
-          {toast && (
-            <motion.div className={`toast ${toastError ? "toast-error" : ""}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}>
-              <span>{toastError ? <X /> : <Check />}</span>
-              <div><b>{toast}</b></div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </section>
-    );
-  }
-
   return (
-    <section className="groups-view" key="list">
-      <div className="section-title">
-        <div>
-          <h2>Tus grupos</h2>
-          <p>Cada grupo tiene su propio link de invitación</p>
-        </div>
-        <button className="group-create-btn" onClick={() => setCreateOpen(true)}>
-          <Plus size={19} /> Crear grupo
-        </button>
-      </div>
-
-      {loading && <p className="groups-status">Cargando tus grupos…</p>}
-
-      {!loading && groups.length === 0 && (
-        <div className="empty-state edge">
-          <span className="empty-emoji">👥</span>
-          <h3>Todavía no tenés grupos</h3>
-          <p>Creá un grupo y compartí el link para que se sumen con su cuenta.</p>
-          <button className="create-submit" onClick={() => setCreateOpen(true)}>
-            <Plus size={18} /> Crear mi primer grupo
+    <section className="groups-view" key={openGroup ? `detail-${openGroup.id}` : "list"}>
+      {openGroup ? (
+        <>
+          <button className="detail-back" onClick={() => setOpenGroupId(null)}>
+            <ArrowLeft size={17} /> Tus grupos
           </button>
-        </div>
-      )}
-
-      {!loading && groups.length > 0 && (
-        <div className="groups-grid">
-          {groups.map((g) => (
-            <div className="group-card edge" key={g.id} onClick={() => setOpenGroupId(g.id)} role="button" tabIndex={0}>
-              <div className="group-card-top">
-                {g.photo_url?<img className="group-photo" src={g.photo_url} alt=""/>:<span className="group-emoji" style={{ background: g.color }}>{g.emoji}</span>}
-                <button className="group-invite" onClick={(e) => { e.stopPropagation(); handleInvite(g.id); }}>
-                  <LinkIcon size={14} /> Invitar
-                </button>
-              </div>
-              <h3>{g.name}</h3>
-              {g.description&&<p className="group-description">{g.description}</p>}
-              <div className="group-members">
-                {g.members.slice(0, 6).map((m) => (
-                  <Avatar key={m.id} initials={initialsOf(m.name)} color={m.avatar_color} src={m.avatar_url} small />
-                ))}
-                <span className="group-count">
-                  <Users size={12} /> {g.members.length} {g.members.length === 1 ? "persona" : "personas"}
-                </span>
-              </div>
+          <div className="group-detail-head edge">
+            {openGroup.photo_url ? (
+              <img className="group-photo" src={openGroup.photo_url} alt="" />
+            ) : (
+              <span className="group-emoji" style={{ background: openGroup.color }}>{openGroup.emoji}</span>
+            )}
+            <div>
+              <h1>{openGroup.name}</h1>
+              {openGroup.description && <p>{openGroup.description}</p>}
             </div>
-          ))}
-        </div>
+            <button className="pulse-secondary" onClick={() => handleInvite(openGroup.id)}>
+              <LinkIcon size={15} /> Invitar
+            </button>
+            {openGroup.created_by === user?.id && (
+              <>
+                <button className="group-delete" onClick={() => openEdit(openGroup)} aria-label="Editar grupo">
+                  <Pencil size={15} />
+                </button>
+                <button className="group-delete" onClick={() => setConfirmDeleteId(openGroup.id)} aria-label="Eliminar grupo">
+                  <Trash2 size={15} />
+                </button>
+              </>
+            )}
+          </div>
+
+          <div className="section-title compact">
+            <div><h2>Integrantes</h2><p>{openGroup.members.length} {openGroup.members.length === 1 ? "persona" : "personas"}</p></div>
+          </div>
+          <div className="group-member-list">
+            {openGroup.members.map((m) => (
+              <div className="person-card edge" key={m.id}>
+                <Avatar initials={initialsOf(m.name)} color={m.avatar_color} src={m.avatar_url} />
+                <span><b>{m.name}</b>{m.id === openGroup.created_by && <small className="owner-tag"><Crown size={11} /> Creador/a</small>}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="section-title compact">
+            <div><h2>Agenda del grupo</h2><p>Disponibilidad compartida para armar el próximo plan</p></div>
+          </div>
+          <AvailabilityView groups={[openGroup]} />
+
+          {confirmDeleteId && (
+            <div className="confirm-remove edge">
+              <div><b>¿Eliminar {openGroup.name}?</b><p>Se borra para todos los integrantes junto con sus planes e invitaciones. No se puede deshacer.</p></div>
+              <button onClick={() => setConfirmDeleteId(null)}>Cancelar</button>
+              <button className="danger" onClick={handleDelete} disabled={deleting}>{deleting ? "Eliminando…" : "Eliminar"}</button>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="section-title">
+            <div>
+              <h2>Tus grupos</h2>
+              <p>Cada grupo tiene su propio link de invitación</p>
+            </div>
+            <button className="group-create-btn" onClick={() => setCreateOpen(true)}>
+              <Plus size={19} /> Crear grupo
+            </button>
+          </div>
+
+          {loading && <p className="groups-status">Cargando tus grupos…</p>}
+
+          {!loading && groups.length === 0 && (
+            <div className="empty-state edge">
+              <span className="empty-emoji">👥</span>
+              <h3>Todavía no tenés grupos</h3>
+              <p>Creá un grupo y compartí el link para que se sumen con su cuenta.</p>
+              <button className="create-submit" onClick={() => setCreateOpen(true)}>
+                <Plus size={18} /> Crear mi primer grupo
+              </button>
+            </div>
+          )}
+
+          {!loading && groups.length > 0 && (
+            <div className="groups-grid">
+              {groups.map((g) => (
+                <div className="group-card edge" key={g.id} onClick={() => setOpenGroupId(g.id)} role="button" tabIndex={0}>
+                  <div className="group-card-top">
+                    {g.photo_url?<img className="group-photo" src={g.photo_url} alt=""/>:<span className="group-emoji" style={{ background: g.color }}>{g.emoji}</span>}
+                    <button className="group-invite" onClick={(e) => { e.stopPropagation(); handleInvite(g.id); }}>
+                      <LinkIcon size={14} /> Invitar
+                    </button>
+                  </div>
+                  <h3>{g.name}</h3>
+                  {g.description&&<p className="group-description">{g.description}</p>}
+                  <div className="group-members">
+                    {g.members.slice(0, 6).map((m) => (
+                      <Avatar key={m.id} initials={initialsOf(m.name)} color={m.avatar_color} src={m.avatar_url} small />
+                    ))}
+                    <span className="group-count">
+                      <Users size={12} /> {g.members.length} {g.members.length === 1 ? "persona" : "personas"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       <AnimatePresence>
