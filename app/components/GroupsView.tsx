@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Check, Crown, Link as LinkIcon, Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { createGroup, createInvite, deleteGroup, updateGroup, type Group } from "@/lib/groups";
+import { createGroup, createInvite, deleteGroup, fetchMyGroupInviteRequests, inviteFriendToGroup, respondGroupInviteRequest, updateGroup, type Group, type Profile } from "@/lib/groups";
 import Avatar from "./Avatar";
 import AvailabilityView from "./AvailabilityView";
 import { useAuth } from "./AuthProvider";
@@ -23,6 +23,7 @@ export default function GroupsView({
   plans,
   onSelectPlan,
   onOpenProfile,
+  friends = [],
 }: {
   groups: Group[];
   loading: boolean;
@@ -31,6 +32,7 @@ export default function GroupsView({
   plans?: any[];
   onSelectPlan?: (id: string) => void;
   onOpenProfile?: (id: string) => void;
+  friends?: Profile[];
 }) {
   const { user } = useAuth();
   const [openGroupId, setOpenGroupId] = useState<string | null>(initialOpenGroupId ?? null);
@@ -43,10 +45,29 @@ export default function GroupsView({
   const [color, setColor] = useState(COLORS[0]);
   const [description,setDescription]=useState("");
   const [photo,setPhoto]=useState<File>();
+  const [invitePicked, setInvitePicked] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const creatingRef = useRef(false);
   const [toast, setToast] = useState("");
   const [toastError,setToastError]=useState(false);
+  const [inviteRequests, setInviteRequests] = useState<any[]>([]);
+  const [respondingId, setRespondingId] = useState<string | null>(null);
+
+  const refreshInviteRequests = () => fetchMyGroupInviteRequests().then(setInviteRequests).catch(() => setInviteRequests([]));
+  useEffect(() => { refreshInviteRequests(); }, []);
+
+  async function respondInvite(requestId: string, accept: boolean) {
+    setRespondingId(requestId);
+    try {
+      await respondGroupInviteRequest(requestId, accept);
+      setInviteRequests(list => list.filter(r => r.id !== requestId));
+      if (accept) { onRefresh(); showToast("¡Te sumaste al grupo! 🎉"); }
+    } catch {
+      showToast("No se pudo responder la invitación.", true);
+    } finally {
+      setRespondingId(null);
+    }
+  }
 
   function showToast(msg: string, error = false) {
     setToast(msg);
@@ -62,6 +83,7 @@ export default function GroupsView({
     setColor(COLORS[0]);
     setDescription("");
     setPhoto(undefined);
+    setInvitePicked([]);
   }
 
   function openEdit(g: Group) {
@@ -84,8 +106,11 @@ export default function GroupsView({
         await updateGroup(editingId, { name: name.trim(), emoji, color, description: description.trim(), photoFile: photo });
         showToast("Grupo actualizado ✏️");
       } else {
-        await createGroup(name.trim(), emoji, color, description.trim(), photo);
-        showToast("Grupo creado 🎉");
+        const newGroup = await createGroup(name.trim(), emoji, color, description.trim(), photo);
+        if (invitePicked.length) {
+          await Promise.all(invitePicked.map(friendId => inviteFriendToGroup(newGroup.id, friendId).catch(() => {})));
+        }
+        showToast(invitePicked.length ? "Grupo creado — les mandamos la invitación 🎉" : "Grupo creado 🎉");
       }
       resetForm();
       onRefresh();
@@ -193,6 +218,25 @@ export default function GroupsView({
         </>
       ) : (
         <>
+          {inviteRequests.length > 0 && (
+            <>
+              <div className="section-title compact">
+                <div><h2>Invitaciones</h2><p>{inviteRequests.length} esperando tu respuesta</p></div>
+              </div>
+              <div className="people-list">
+                {inviteRequests.map((r: any) => (
+                  <div className="person-card edge" key={r.id}>
+                    <span className="group-emoji" style={{ background: r.groups?.color, width: 40, height: 40, fontSize: 18 }}>{r.groups?.emoji}</span>
+                    <span><b>{r.groups?.name}</b><small>Invitó {r.inviter?.name}</small></span>
+                    <div>
+                      <button className="accept" onClick={() => respondInvite(r.id, true)} disabled={respondingId === r.id}><Check /></button>
+                      <button onClick={() => respondInvite(r.id, false)} disabled={respondingId === r.id}><X /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
           <div className="section-title">
             <div>
               <h2>Tus grupos</h2>
@@ -281,6 +325,19 @@ export default function GroupsView({
                 </label>
                 <label className="field"><span>Descripción</span><input value={description} onChange={e=>setDescription(e.target.value)} placeholder="¿Quiénes forman este grupo?"/></label>
                 <label className="field"><span>{editingId ? "Cambiar foto (opcional)" : "Foto del grupo (opcional)"}</span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>setPhoto(e.target.files?.[0])}/></label>
+                {!editingId && friends.length > 0 && (
+                  <label className="field">
+                    <span>Invitar amigos (opcional)</span>
+                    <div className="invitee-picker">
+                      {friends.map(f => {
+                        const on = invitePicked.includes(f.id);
+                        return <button type="button" key={f.id} className={`invitee-chip ${on ? "on" : ""}`} onClick={() => setInvitePicked(list => on ? list.filter(id => id !== f.id) : [...list, f.id])}>
+                          <Avatar initials={initialsOf(f.name)} color={f.avatar_color} src={f.avatar_url} small /><span>{f.name}</span>{on && <Check size={13} />}
+                        </button>;
+                      })}
+                    </div>
+                  </label>
+                )}
                 <div className="color-select">
                   <span>Emoji</span>
                   <div>

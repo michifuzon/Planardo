@@ -430,7 +430,7 @@ export default function Page() {
           )}
 
           {active === "groups" && (
-            <GroupsView groups={groups} loading={groupsLoading} onRefresh={refreshGroups} initialOpenGroupId={groupToOpen} plans={plans} onSelectPlan={setSelectedPlan} onOpenProfile={setViewingProfileId} />
+            <GroupsView groups={groups} loading={groupsLoading} onRefresh={refreshGroups} initialOpenGroupId={groupToOpen} plans={plans} onSelectPlan={setSelectedPlan} onOpenProfile={setViewingProfileId} friends={directFriends} />
           )}
 
           {active === "friends" && <FriendsView onOpenProfile={setViewingProfileId} />}

@@ -138,6 +138,29 @@ export async function joinGroupWithInvite(code: string) {
   return data as string;
 }
 
+export async function inviteFriendToGroup(groupId: string, friendId: string) {
+  const db = client();
+  const { error } = await db.rpc("invite_friend_to_group", { target_group: groupId, friend_id: friendId });
+  if (error) throw error;
+}
+
+export async function fetchMyGroupInviteRequests() {
+  const db = client();
+  const { data: auth } = await db.auth.getUser();
+  if (!auth.user) return [];
+  const { data, error } = await db.from("group_invite_requests")
+    .select("id,status,groups(id,name,emoji,color),inviter:profiles!group_invite_requests_invited_by_fkey(name)")
+    .eq("invited_user_id", auth.user.id).eq("status", "pending");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function respondGroupInviteRequest(requestId: string, accept: boolean) {
+  const db = client();
+  const { error } = await db.rpc("respond_group_invite_request", { request_id: requestId, accept });
+  if (error) throw error;
+}
+
 export async function deleteGroup(groupId: string) {
   const db = client();
   const { error } = await db.rpc("delete_group", { target_group: groupId });
