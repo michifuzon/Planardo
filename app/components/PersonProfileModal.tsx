@@ -24,15 +24,19 @@ export default function PersonProfileModal({ id, onClose }: { id: string | null;
       {id && (
         <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
           <motion.div className="person-profile-modal edge" initial={{ opacity: 0, y: 30, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.97 }} transition={{ type: "spring", damping: 26, stiffness: 300 }}>
-            <button className="person-profile-close" onClick={onClose} aria-label="Cerrar"><X /></button>
             {loading || !profile ? (
-              <div className="auth-loading-mark" style={{ margin: "30px auto" }} />
+              <div className="person-profile-loading"><div className="auth-loading-mark" /></div>
             ) : (
               <>
-                <Avatar initials={initials(profile.name)} color={profile.avatar_color} src={profile.avatar_url} />
-                <h2>{profile.name}</h2>
-                <p className="person-profile-username">@{profile.username}</p>
-                {profile.bio && <p className="person-profile-bio">{profile.bio}</p>}
+                <div className="person-profile-banner" style={{ background: `linear-gradient(155deg, ${profile.avatar_color}, transparent)` }}>
+                  <button className="person-profile-close" onClick={onClose} aria-label="Cerrar"><X size={16} /></button>
+                </div>
+                <div className="person-profile-body">
+                  <Avatar initials={initials(profile.name)} color={profile.avatar_color} src={profile.avatar_url} />
+                  <h2>{profile.name}</h2>
+                  <p className="person-profile-username">@{profile.username}</p>
+                  {profile.bio ? <p className="person-profile-bio">{profile.bio}</p> : <p className="person-profile-bio muted">Todavía no agregó una bio.</p>}
+                </div>
               </>
             )}
           </motion.div>

@@ -257,7 +257,7 @@ export default function Page() {
             }}><Bell size={19}/>{notifications.some(n=>!n.read_at)&&<i/>}</button>
             <button className="top-profile-button" onClick={()=>{setActive("profile");setSelectedPlan(null)}} aria-label="Abrir mi perfil"><Avatar initials={initials} color="linear-gradient(135deg,#8b5cf6,#ec4899)" src={myProfile?.avatar_url}/></button>
           </div>
-          <AnimatePresence>{notificationsOpen&&<motion.div className="notifications-panel edge" initial={{opacity:0,y:-6,scale:.98}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-5}}><div className="notifications-head"><div><p className="eyebrow">ACTIVIDAD</p><h3>Notificaciones</h3></div><button onClick={()=>setNotificationsOpen(false)}><X/></button></div>{notifications.length?notifications.map(n=><button className="notification-row" key={n.id} onClick={()=>{if(n.type==="friend_request")setActive("friends");else if(n.plan_id)setSelectedPlan(n.plan_id);setNotificationsOpen(false)}}><span>{n.type==="attendance"?"✓":n.type==="poll"?"◉":n.type==="location"?"⌖":n.type==="friend_request"?"👋":"•"}</span><div><b>{n.title}</b>{n.body&&<p>{n.body}</p>}<small>{new Date(n.created_at).toLocaleString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</small></div></button>):<div className="notifications-empty"><p>Todo tranquilo por acá.</p></div>}</motion.div>}</AnimatePresence>
+          <AnimatePresence>{notificationsOpen&&<motion.div className="notifications-panel edge" initial={{opacity:0,y:-6,scale:.98}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-5}}><div className="notifications-head"><div><p className="eyebrow">ACTIVIDAD</p><h3>Notificaciones</h3></div><button onClick={()=>setNotificationsOpen(false)}><X/></button></div>{notifications.length?notifications.map(n=><button className="notification-row" key={n.id} onClick={()=>{if(n.type==="friend_request")setActive("friends");else if(n.plan_id)setSelectedPlan(n.plan_id);else if(n.type==="group_added"&&n.group_id){setGroupToOpen(n.group_id);setActive("groups")}setNotificationsOpen(false)}}><span>{n.type==="plan_invite"?"🎉":n.type==="group_added"?"👥":n.type==="friend_accepted"?"🤝":n.type==="attendance"?"✓":n.type==="poll"?"◉":n.type==="location"?"⌖":n.type==="friend_request"?"👋":"•"}</span><div><b>{n.title}</b>{n.body&&<p>{n.body}</p>}<small>{new Date(n.created_at).toLocaleString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</small></div></button>):<div className="notifications-empty"><p>Todo tranquilo por acá.</p></div>}</motion.div>}</AnimatePresence>
         </header>
 
         <div className="page-content">
@@ -267,7 +267,6 @@ export default function Page() {
             <>
               <div className="greeting">
                 <div><p className="eyebrow">{todayLabel}</p><h1>{greeting}, {name} <span>👋</span></h1><p>{friends.length > 0 ? "Hay lindos planes esperándote." : "Armá tu primer grupo para arrancar."}</p></div>
-                <button className="create-desktop" onClick={() => setModal(true)}><Plus size={19}/> Crear Planardo</button>
               </div>
 
               {groups.length === 0 && !groupsLoading ? (
