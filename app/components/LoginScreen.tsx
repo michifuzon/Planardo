@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, AtSign, Eye, EyeOff, Lock, Mail, Moon, RotateCw, Sparkles, Sun, UserRound } from "lucide-react";
+import { ArrowRight, AtSign, Eye, EyeOff, Lock, Mail, Moon, RotateCw, Sun, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { applyTheme, getStoredTheme } from "@/lib/theme";
@@ -110,8 +110,7 @@ export default function LoginScreen() {
                   <>Juntarse arranca <span>acá</span></>
                 ) : (
                   <>Sumate al <span>plan</span></>
-                )}{" "}
-                <Sparkles size={26} className="auth-sparkle" />
+                )}
               </h1>
               <p className="auth-copy">
                 {mode === "signin"

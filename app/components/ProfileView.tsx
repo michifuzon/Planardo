@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, Check, LoaderCircle, Save } from "lucide-react";
+import { Camera, Check, LoaderCircle, Save, Share2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { fetchMyProfile, fetchMyStats, updateMyProfile, usernameAvailable, type FullProfile } from "@/lib/profiles";
 import AvatarCropper from "./AvatarCropper";
@@ -43,6 +43,17 @@ export default function ProfileView({ fallbackName, email, groupCount, friendCou
     }
   }
 
+  async function shareProfile() {
+    if (!profile) return;
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/u/${profile.id}`);
+      setStatus("saved"); setMessage("Link de tu perfil copiado — mandaselo a quien querés que te agregue 📋");
+      window.setTimeout(() => { setStatus("idle"); setMessage(""); }, 3200);
+    } catch {
+      setStatus("error"); setMessage("No se pudo copiar el link.");
+    }
+  }
+
   async function saveAvatar(next: File) {
     setFile(next);
     setPreview(URL.createObjectURL(next));
@@ -82,6 +93,7 @@ export default function ProfileView({ fallbackName, email, groupCount, friendCou
           <div><h2>{name || fallbackName}</h2><p>@{username || "tu_username"} · {email}</p></div>
           <div className="profile-stats"><span><b>{stats.groups}</b> grupos</span><span><b>{stats.friends}</b> amigos</span></div>
         </div>
+        {profile && <button type="button" className="inline-create share-profile-btn" onClick={shareProfile}><Share2 size={14}/> Compartir mi perfil</button>}
         <div className="profile-fields">
           <label><span>Nombre</span><input value={name} onChange={(e)=>setName(e.target.value)} maxLength={50}/></label>
           <label><span>Username único</span><div className="username-input"><i>@</i><input value={username} onChange={(e)=>setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,""))} minLength={3} maxLength={24}/></div></label>

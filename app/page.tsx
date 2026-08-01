@@ -77,6 +77,7 @@ export default function Page() {
     name:"", emoji:"🎉", date:"", time:"21:00", end_date:"", end_time:"", place_name:"", location_url:"",
     description:"", notes:"", plan_type:"other", color:"#8b5cf6", group_id:"",
   });
+  const [templateOn, setTemplateOn] = useState(false);
 
   useEffect(() => {
     setLight(getStoredTheme() === "light");
@@ -150,6 +151,7 @@ export default function Page() {
       await createPlan({ ...planForm, invitee_ids, cover_file:planCover });
       setModal(false); setToast(true);
       setPlanForm({name:"",emoji:"🎉",date:"",time:"21:00",end_date:"",end_time:"",place_name:"",location_url:"",description:"",notes:"",plan_type:"other",color:"#8b5cf6",group_id:""});
+      setTemplateOn(false);
       setPicked([]);
       setPlanCover(undefined);
       setPlans(await fetchMyPlans());
@@ -285,7 +287,7 @@ export default function Page() {
                 <section className="social-pulse edge">
                   <div className="pulse-copy">
                     <div className="live-label"><i/> {availableToday.length > 0 ? `${availableToday.length} LIBRES HOY` : "TU GENTE"}</div>
-                    <h2>Tenés <span>{directFriends.length}</span> {directFriends.length === 1 ? "amiga/o" : "amigas/os"}<br/>y estás en <span>{groups.length}</span> {groups.length === 1 ? "grupo" : "grupos"} <b>🔥</b></h2>
+                    <h2>Tenés <span>{directFriends.length}</span> {directFriends.length === 1 ? "amiga/o" : "amigas/os"}<br/>y estás en <span>{groups.length}</span> {groups.length === 1 ? "grupo" : "grupos"}</h2>
                     <p>Elegí un grupo y armá un plan, o invitá a alguien más.</p>
                     <div className="pulse-actions">
                       <button className="pulse-cta" onClick={() => setModal(true)}><Plus size={18}/> Armar un Planardo</button>
@@ -458,8 +460,12 @@ export default function Page() {
             <div className="modal-handle"/>
             <div className="modal-head"><div><p className="eyebrow">NUEVO PLAN</p><h2>Crear un Planardo <span>✨</span></h2></div><button onClick={()=>setModal(false)}><X/></button></div>
             <div className="form">
-              <div className="template-strip"><span>Empezar con una plantilla</span><div>{[["🥩","Asado","food"],["🎂","Cumple","birthday"],["✈️","Viaje","trip"],["🎮","Juegos","gaming"],["🍽️","Cena","food"]].map(([emoji,label,type])=><button type="button" key={label} onClick={()=>setPlanForm({...planForm,emoji,plan_type:type,name:planForm.name||label})}><b>{emoji}</b><small>{label}</small></button>)}</div></div>
+              <div className="template-strip">
+                <div className="template-head"><span>Empezar con una plantilla</span>{templateOn&&<button type="button" className="template-clear" onClick={()=>{setPlanForm({...planForm,emoji:"🎉",plan_type:"other"});setTemplateOn(false);}}><X size={12}/> Quitar plantilla</button>}</div>
+                <div>{[["🥩","Asado","food"],["🎂","Cumple","birthday"],["✈️","Viaje","trip"],["🎮","Juegos","gaming"],["🍽️","Cena","food"]].map(([emoji,label,type])=><button type="button" key={label} className={templateOn&&planForm.emoji===emoji&&planForm.plan_type===type?"selected":""} onClick={()=>{setPlanForm({...planForm,emoji,plan_type:type,name:planForm.name||label});setTemplateOn(true);}}><b>{emoji}</b><small>{label}</small></button>)}</div>
+              </div>
               <label className="main-input"><span className="emoji-picker">{planForm.emoji}</span><input autoFocus placeholder="¿Qué plan pinta?" value={planForm.name} onChange={e=>setPlanForm({...planForm,name:e.target.value})}/></label>
+              <div className="color-select emoji-select"><span>Emoji</span><div>{["🎉","🥩","🎂","✈️","🎮","🍽️","🏠","⚽","🎬","🍻","📚","🏖️","🎊","🌮","☕","🎵"].map(e=><button type="button" key={e} className={planForm.emoji===e?"selected emoji-opt":"emoji-opt"} onClick={()=>setPlanForm({...planForm,emoji:e})}>{e}</button>)}</div></div>
               <div className="field-row">
                 <label><span><CalendarDays size={17}/> Fecha</span><input type="date" value={planForm.date} onChange={e=>setPlanForm({...planForm,date:e.target.value})}/></label>
                 <label><span><Clock3 size={17}/> Hora</span><input type="time" value={planForm.time} onChange={e=>setPlanForm({...planForm,time:e.target.value})}/></label>
@@ -471,7 +477,7 @@ export default function Page() {
               {planForm.date&&planForm.end_date&&<p className="duration-hint">{Math.max(1,Math.round((new Date(planForm.end_date).getTime()-new Date(planForm.date).getTime())/86400000)+1)} días · {Math.max(0,Math.round((new Date(planForm.end_date).getTime()-new Date(planForm.date).getTime())/86400000))} noches</p>}
               <label className="field"><span><Sparkles size={17}/> Tipo de plan</span><select value={planForm.plan_type} onChange={e=>setPlanForm({...planForm,plan_type:e.target.value})}>{[["food","🍕 Cena / comida"],["home","🏠 Casa"],["camping","🏕️ Camping"],["trip","✈️ Viaje"],["birthday","🎂 Cumpleaños"],["bar","🍻 Bar"],["cinema","🎬 Cine"],["outdoor","🏖️ Aire libre"],["sport","🏃 Deporte"],["gaming","🎮 Gaming"],["study","📚 Estudio"],["party","🎉 Fiesta"],["other","✨ Otro"]].map(([v,l])=><option value={v} key={v}>{l}</option>)}</select></label>
               <label className="field"><span><MapPin size={17}/> Lugar</span><input placeholder="¿Dónde se juntan?" value={planForm.place_name} onChange={e=>setPlanForm({...planForm,place_name:e.target.value})}/></label>
-              <label className="field"><span><MapPin size={17}/> Link de ubicación</span><input type="url" placeholder="https://maps.google.com/…" value={planForm.location_url} onChange={e=>setPlanForm({...planForm,location_url:e.target.value})}/></label>
+              <label className="field"><span><MapPin size={17}/> Link de ubicación</span><input type="text" inputMode="url" placeholder="https://maps.google.com/…" value={planForm.location_url} onChange={e=>setPlanForm({...planForm,location_url:e.target.value})}/></label>
               <label className="field"><span>Descripción</span><input placeholder="Contales de qué se trata" value={planForm.description} onChange={e=>setPlanForm({...planForm,description:e.target.value})}/></label>
               <label className="field"><span>Foto de portada (opcional)</span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>setPlanCover(e.target.files?.[0])}/></label>
               <label className="field"><span><Users size={17}/> Grupo (opcional)</span><select value={planForm.group_id} onChange={e=>setPlanForm({...planForm,group_id:e.target.value})}><option value="">Sin grupo — elijo yo a quién invitar</option>{groups.map(g=><option key={g.id} value={g.id}>{g.emoji} {g.name}</option>)}</select></label>
@@ -491,7 +497,7 @@ export default function Page() {
                 )}
               </label>
               <div className="color-select"><span>Color del plan</span><div>{["#8b5cf6","#f97316","#06b6d4","#22c55e","#ec4899"].map(c=><button type="button" key={c} onClick={()=>setPlanForm({...planForm,color:c})} className={planForm.color===c?"selected":""} style={{background:c}}>{planForm.color===c&&<Check/>}</button>)}</div></div>
-              <button className="create-submit" disabled={planSaving||!planForm.name||!planForm.date} onClick={savePlan}>{planSaving?"Creando…":"Crear Planardo"} <Sparkles size={18}/></button>
+              <button className="create-submit" disabled={planSaving||!planForm.name||!planForm.date} onClick={savePlan}>{planSaving?"Creando…":"Crear Planardo ✨"}</button>
               <p className="form-note">Podés cambiar todos los detalles después</p>
             </div>
           </motion.div>
