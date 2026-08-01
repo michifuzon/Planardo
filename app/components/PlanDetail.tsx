@@ -1,14 +1,17 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, CalendarDays, CalendarPlus, Car, Check, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, ExternalLink, ImagePlus, ListChecks, MapPin, MessageCircle, Pencil, Plus, Send, Trash2, Users, Vote, X, XCircle } from "lucide-react";
+import { ArrowLeft, CalendarDays, CalendarPlus, Car, Check, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, ExternalLink, ImagePlus, ListChecks, MapPin, MessageCircle, Pencil, Plus, Send, Share2, Trash2, Users, Vote, X, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addChecklistItem, addExpense, addPlanItem, addPoll, addTimelineItem, claimPlanItem,
-  addPlanComment, cancelPlan, deletePoll, fetchPlanDetail, respondToPlan, sendPlanMessage, setPlanTransport, toggleChecklistItem, updatePlan, uploadPlanPhoto, votePoll,
+  addPlanComment, cancelPlan, createPlanInvite, deleteChecklistItem, deleteExpense, deletePlanItem, deletePoll,
+  fetchPlanDetail, joinPlanRide, leavePlanRide, removePlanTransport, respondToPlan, sendPlanMessage,
+  setPlanTransport, toggleChecklistItem, updatePlan, uploadPlanPhoto, votePoll,
 } from "@/lib/plans";
 import { cap } from "@/lib/format";
 import { downloadPlanICS } from "@/lib/ics";
+import { addAvailabilityBlock, removeAvailabilityForPlan } from "@/lib/availability";
 import Avatar from "./Avatar";
 import { useAuth } from "./AuthProvider";
 
@@ -41,6 +44,7 @@ export default function PlanDetail({id,onBack,onDeleted,onOpenProfile}:{id:strin
   const [editOpen,setEditOpen]=useState(false);
   const [editForm,setEditForm]=useState<any>(null);
   const [editSaving,setEditSaving]=useState(false);
+  const [shareToast,setShareToast]=useState(false);
   const refresh=useCallback(()=>fetchPlanDetail(id).then(setPlan),[id]);
   const load=useCallback(()=>{setLoading(true);refresh().finally(()=>setLoading(false));},[refresh]);
   useEffect(()=>{load()},[load]);
@@ -67,6 +71,14 @@ export default function PlanDetail({id,onBack,onDeleted,onOpenProfile}:{id:strin
     });
     setEditOpen(true);
   }
+  async function sharePlan(){
+    try{
+      const invite=await createPlanInvite(id);
+      await navigator.clipboard.writeText(`${window.location.origin}/plan/${invite.code}`);
+      setShareToast(true);
+      window.setTimeout(()=>setShareToast(false),3200);
+    }catch{}
+  }
   async function saveEdit(){
     if(!editForm?.name?.trim()||!editForm?.date||editSaving)return;
     setEditSaving(true);
@@ -80,7 +92,25 @@ export default function PlanDetail({id,onBack,onDeleted,onOpenProfile}:{id:strin
   async function answer(response:"going"|"maybe"|"declined"){
     const result=await respondToPlan(id,response);
     if(result.status==="conflict"){setConflicts(result.conflicts||[]);return;}
-    setConflicts([]);refresh();
+    setConflicts([]);
+    await removeAvailabilityForPlan(id);
+    if(response==="going"){
+      const rangeStart=new Date(plan.starts_at);
+      const rangeEnd=plan.ends_at?new Date(plan.ends_at):new Date(rangeStart.getTime()+2*3600*1000);
+      const startParts=toLocalParts(rangeStart.toISOString());
+      const endParts=toLocalParts(rangeEnd.toISOString());
+      if(startParts.date===endParts.date){
+        await addAvailabilityBlock(startParts.date,"busy",startParts.time,endParts.time,id);
+      }else{
+        const cursor=new Date(rangeStart.getFullYear(),rangeStart.getMonth(),rangeStart.getDate());
+        const last=new Date(rangeEnd.getFullYear(),rangeEnd.getMonth(),rangeEnd.getDate());
+        while(cursor<=last){
+          await addAvailabilityBlock(`${cursor.getFullYear()}-${pad(cursor.getMonth()+1)}-${pad(cursor.getDate())}`,"busy",undefined,undefined,id);
+          cursor.setDate(cursor.getDate()+1);
+        }
+      }
+    }
+    refresh();
   }
   async function submitQuick(){
     if(!field.trim())return;
@@ -108,7 +138,7 @@ export default function PlanDetail({id,onBack,onDeleted,onOpenProfile}:{id:strin
     <button className="detail-back" onClick={onBack}><ArrowLeft size={17}/> Volver</button>
     <div className="plan-hero edge" style={{"--plan-color":plan.color} as React.CSSProperties}>
       {plan.cover_url&&<img className="plan-cover" src={plan.cover_url} alt=""/>}
-      <div className="plan-hero-top"><span className="plan-big-emoji">{plan.emoji}</span><div className="plan-hero-actions"><span className="plan-type">{plan.plan_type||"Plan"}</span><button className="icon-only" onClick={()=>downloadPlanICS(plan)} aria-label="Agregar a mi calendario" title="Agregar a mi calendario"><CalendarPlus size={15}/></button>{plan.created_by===user?.id&&plan.status!=="cancelled"&&<><button onClick={openEdit} aria-label="Editar el Planardo"><Pencil/><span>Editar</span></button><button onClick={()=>setConfirmDelete(true)} aria-label="Dar de baja el Planardo"><XCircle/><span>Dar de baja</span></button></>}</div></div>
+      <div className="plan-hero-top"><span className="plan-big-emoji">{plan.emoji}</span><div className="plan-hero-actions"><span className="plan-type">{plan.plan_type||"Plan"}</span><button onClick={sharePlan} aria-label="Compartir este Planardo" title="Compartir este Planardo"><Share2 size={15}/><span>Compartir</span></button><button onClick={()=>downloadPlanICS(plan)} aria-label="Agregar al calendario de tu teléfono" title="Agregar al calendario de tu teléfono"><CalendarPlus size={15}/><span>A tu celular</span></button>{plan.created_by===user?.id&&plan.status!=="cancelled"&&<><button onClick={openEdit} aria-label="Editar el Planardo"><Pencil/><span>Editar</span></button><button onClick={()=>setConfirmDelete(true)} aria-label="Dar de baja el Planardo"><XCircle/><span>Dar de baja</span></button></>}</div></div>
       <div className="plan-hero-info"><p>{start.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"}).toUpperCase()}</p><h1>{plan.name}</h1><span className="hero-meta"><Clock3 size={15}/>{start.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}{end&&<> · {days>1?`${days} días · ${days-1} noches`:`hasta ${end.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}`}</>}</span>{plan.place_name&&<span className="hero-meta"><MapPin size={15}/>{plan.place_name}{plan.location_url&&<a href={plan.location_url} target="_blank"><ExternalLink size={13}/></a>}</span>}</div>
       <div className="hero-people"><div>{plan.plan_members.slice(0,6).map((m:any)=><Avatar key={m.user_id} initials={initials(m.profiles.name)} color={m.profiles.avatar_color} src={m.profiles.avatar_url}/>)}</div><span><b>{stats.going}</b> confirmados · {stats.pending} pendientes</span></div>
     </div>
@@ -122,13 +152,29 @@ export default function PlanDetail({id,onBack,onDeleted,onOpenProfile}:{id:strin
       </div>}
       {tab==="people"&&<><div className="attendance-summary">{[["going","Confirmados",stats.going],["maybe","Tal vez",stats.maybe],["pending","Pendientes",stats.pending],["declined","No pueden",stats.declined]].map(([key,label,count])=><div key={key as string} className={key as string}><b>{count}</b><span>{label}</span></div>)}</div><div className="guest-grid">{plan.plan_members.map((m:any)=><div className="guest-card edge" key={m.user_id} onClick={()=>onOpenProfile?.(m.user_id)} style={onOpenProfile?{cursor:"pointer"}:undefined}><Avatar initials={initials(m.profiles.name)} color={m.profiles.avatar_color} src={m.profiles.avatar_url}/><span><b>{m.profiles.name}</b><small>@{m.profiles.username}</small></span><i className={`guest-status ${m.response}`}/></div>)}</div></>}
       {tab==="organize"&&<div className="detail-grid">
-        <article className="detail-card edge"><div className="detail-card-head"><div><p className="eyebrow">CHECKLIST</p><h3>Lo que falta hacer</h3></div><button onClick={()=>setQuick({type:"check",open:true})}><Plus/></button></div>{plan.checklist.map((x:any)=><button className={`check-row ${x.completed?"done":""}`} key={x.id} onClick={async()=>{await toggleChecklistItem(x.id,!x.completed);refresh()}}>{x.completed?<CheckCircle2/>:<span/>}<b>{x.label}</b></button>)}{!plan.checklist.length&&<p className="detail-empty">Todo bajo control. Agregá la primera tarea.</p>}</article>
-        <article className="detail-card edge"><div className="detail-card-head"><div><p className="eyebrow">QUIÉN LLEVA QUÉ</p><h3>Lista colaborativa</h3></div><button onClick={()=>setQuick({type:"item",open:true})}><Plus/></button></div>{plan.items.map((x:any)=><button className={`bring-row ${x.claimed_by?"claimed":""}`} key={x.id} onClick={async()=>{await claimPlanItem(x.id,!x.claimed_by);refresh()}}><span>{x.claimed_by&&<Check/>}</span><b>{x.label}</b><small>{x.profiles?.name||"Me anoto"}</small></button>)}{!plan.items.length&&<p className="detail-empty">Agregá bebidas, comida o cualquier cosa necesaria.</p>}</article>
-        <article className="detail-card edge"><div className="detail-card-head"><div><p className="eyebrow">TRANSPORTE</p><h3>¿Cómo llega cada uno?</h3></div><Car size={17}/></div><div className="transport-choices">{[["car","🚗 Auto"],["rideshare","🚕 Uber"],["walk","🚶 Caminando"],["bus","🚌 Colectivo"],["bike","🚲 Bici"]].map(([mode,label])=><button key={mode} onClick={async()=>{await setPlanTransport(id,mode,mode==="car"?3:0);refresh()}}>{label}</button>)}</div>{plan.transport.map((x:any)=><div className="transport-row" key={x.user_id}><Avatar initials={initials(x.profiles.name)} color={x.profiles.avatar_color} src={x.profiles.avatar_url} small/><b>{x.profiles.name}</b><span>{x.mode}{x.seats_available?` · ${x.seats_available} lugares`:""}</span></div>)}</article>
+        <article className="detail-card edge"><div className="detail-card-head"><div><p className="eyebrow">CHECKLIST</p><h3>Lo que falta hacer</h3></div><button onClick={()=>setQuick({type:"check",open:true})}><Plus/></button></div>{plan.checklist.map((x:any)=><div className={`check-row ${x.completed?"done":""}`} key={x.id}><button type="button" className="check-toggle" onClick={async()=>{await toggleChecklistItem(x.id,!x.completed);refresh()}}>{x.completed?<CheckCircle2/>:<span/>}<b>{x.label}</b></button><button type="button" className="row-delete" onClick={async()=>{await deleteChecklistItem(x.id);refresh()}} aria-label="Eliminar tarea"><Trash2 size={13}/></button></div>)}{!plan.checklist.length&&<p className="detail-empty">Todo bajo control. Agregá la primera tarea.</p>}</article>
+        <article className="detail-card edge"><div className="detail-card-head"><div><p className="eyebrow">QUIÉN LLEVA QUÉ</p><h3>Lista colaborativa</h3></div><button onClick={()=>setQuick({type:"item",open:true})}><Plus/></button></div>{plan.items.map((x:any)=>{const mine=x.claimed_by===user?.id;const taken=!!x.claimed_by&&!mine;const canDelete=x.created_by===user?.id||plan.created_by===user?.id;return <div className={`bring-row ${x.claimed_by?"claimed":""} ${taken?"taken":""}`} key={x.id}><button type="button" className="bring-toggle" disabled={taken} onClick={async()=>{if(taken)return;await claimPlanItem(x.id,!x.claimed_by);refresh()}}><span>{x.claimed_by&&<Check/>}</span><b>{x.label}</b><small>{taken?x.profiles?.name:mine?"Lo llevás vos":"+ Anotarme"}</small></button>{canDelete&&<button type="button" className="row-delete" onClick={async()=>{await deletePlanItem(x.id);refresh()}} aria-label="Eliminar item"><Trash2 size={13}/></button>}</div>})}{!plan.items.length&&<p className="detail-empty">Agregá bebidas, comida o cualquier cosa necesaria.</p>}</article>
+        <article className="detail-card edge"><div className="detail-card-head"><div><p className="eyebrow">TRANSPORTE</p><h3>¿Cómo llega cada uno?</h3></div><Car size={17}/></div><div className="transport-choices">{[["car","🚗 Auto"],["rideshare","🚕 Uber"],["walk","🚶 Caminando"],["bus","🚌 Colectivo"],["bike","🚲 Bici"]].map(([mode,label])=><button key={mode} onClick={async()=>{await setPlanTransport(id,mode,mode==="car"?3:0);refresh()}}>{label}</button>)}</div>{plan.transport.map((x:any)=>{
+          const mine=x.user_id===user?.id;
+          const riders=x.riders||[];
+          const canRide=(x.mode==="car"||x.mode==="rideshare")&&x.seats_available>0;
+          const iAmRider=riders.some((r:any)=>r.user_id===user?.id);
+          const full=riders.length>=x.seats_available;
+          return <div className="transport-row" key={x.user_id}>
+            <Avatar initials={initials(x.profiles.name)} color={x.profiles.avatar_color} src={x.profiles.avatar_url} small/>
+            <b>{x.profiles.name}</b>
+            <span>{x.mode}{x.seats_available?` · ${riders.length}/${x.seats_available} lugares`:""}</span>
+            {mine&&<button type="button" className="row-delete" onClick={async()=>{await removePlanTransport(id);refresh()}} aria-label="Quitar mi transporte"><Trash2 size={13}/></button>}
+            {!mine&&canRide&&(iAmRider
+              ? <button type="button" className="ride-join on" onClick={async()=>{await leavePlanRide(id,x.user_id);refresh()}}>Bajarme</button>
+              : <button type="button" className="ride-join" disabled={full} onClick={async()=>{await joinPlanRide(id,x.user_id);refresh()}}>{full?"Sin lugares":"Sumarme"}</button>)}
+            {riders.length>0&&<div className="ride-riders">{riders.map((r:any)=><Avatar key={r.user_id} initials={initials(r.profiles.name)} color={r.profiles.avatar_color} src={r.profiles.avatar_url} small/>)}</div>}
+          </div>;
+        })}</article>
       </div>}
       {tab==="polls"&&<><button className="inline-create" onClick={()=>{setQuickError("");setPollOptions(["",""]);setQuick({type:"poll",open:true})}}><Plus/> Nueva encuesta</button><div className="poll-grid">{plan.polls.map((poll:any)=><article className="detail-card edge" key={poll.id}><div className="poll-title"><div><p className="eyebrow">ENCUESTA</p><h3>{poll.question}</h3></div>{(poll.created_by===user?.id||plan.created_by===user?.id)&&<button onClick={async()=>{await deletePoll(poll.id);refresh()}} aria-label="Eliminar encuesta"><Trash2/></button>}</div><div className="poll-options">{poll.poll_options.map((o:any)=>{const votes=o.poll_votes.length;const mine=o.poll_votes.some((v:any)=>v.user_id===user?.id);return <button className={mine?"voted":""} key={o.id} onClick={async()=>{await votePoll(o.id);refresh()}}><span>{mine&&"✓ "}{o.emoji} {o.label}</span><b>{votes}</b><i style={{width:`${Math.min(100,votes/Math.max(1,plan.plan_members.length)*100)}%`}}/></button>})}</div></article>)}</div>{!plan.polls.length&&<div className="empty-state edge"><span className="empty-emoji">🗳️</span><h3>Decidan juntos</h3><p>Creá una votación para elegir comida, lugar, horario o actividad.</p></div>}</>}
-      {tab==="budget"&&<><div className="budget-total edge"><span>Total estimado</span><b>${plan.expenses.reduce((s:number,e:any)=>s+Number(e.amount),0).toLocaleString("es-AR")}</b><small>${Math.round(plan.expenses.reduce((s:number,e:any)=>s+Number(e.amount),0)/Math.max(1,stats.going)).toLocaleString("es-AR")} por confirmado</small></div><button className="inline-create" onClick={()=>setQuick({type:"expense",open:true})}><Plus/> Agregar gasto</button><div className="expense-list">{plan.expenses.map((e:any)=><div className="expense-row edge" key={e.id}><span><CircleDollarSign/></span><div><b>{e.label}</b><small>Pagó {e.profiles?.name||"—"}</small></div><strong>${Number(e.amount).toLocaleString("es-AR")}</strong></div>)}</div></>}
-      {tab==="chat"&&<div className="chat-panel edge"><div className="messages">{plan.messages.map((m:any)=><div className="message" key={m.id}><Avatar initials={initials(m.profiles.name)} color={m.profiles.avatar_color} src={m.profiles.avatar_url} small/><div><span><b>{m.profiles.name}</b><small>{new Date(m.created_at).toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}</small></span><p>{m.body}</p></div></div>)}{!plan.messages.length&&<p className="detail-empty">El chat arranca con el primer mensaje.</p>}</div><div className="chat-composer"><input value={composer} onChange={e=>setComposer(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Escribí un mensaje…"/><button onClick={send}><Send/></button></div></div>}
+      {tab==="budget"&&<><div className="budget-total edge"><span>Total estimado</span><b>${plan.expenses.reduce((s:number,e:any)=>s+Number(e.amount),0).toLocaleString("es-AR")}</b><small>${Math.round(plan.expenses.reduce((s:number,e:any)=>s+Number(e.amount),0)/Math.max(1,stats.going)).toLocaleString("es-AR")} por confirmado</small></div><button className="inline-create" onClick={()=>setQuick({type:"expense",open:true})}><Plus/> Agregar gasto</button><div className="expense-list">{plan.expenses.map((e:any)=><div className="expense-row edge" key={e.id}><span><CircleDollarSign/></span><div><b>{e.label}</b><small>Pagó {e.profiles?.name||"—"}</small></div><strong>${Number(e.amount).toLocaleString("es-AR")}</strong>{(e.paid_by===user?.id||plan.created_by===user?.id)&&<button type="button" className="row-delete" onClick={async()=>{await deleteExpense(e.id);refresh()}} aria-label="Eliminar gasto"><Trash2 size={13}/></button>}</div>)}</div></>}
+      {tab==="chat"&&<div className="chat-panel edge"><div className="messages">{plan.messages.map((m:any)=>{const mine=m.user_id===user?.id;return <div className={`message ${mine?"own":""}`} key={m.id}>{!mine&&<Avatar initials={initials(m.profiles.name)} color={m.profiles.avatar_color} src={m.profiles.avatar_url} small/>}<div><span>{!mine&&<b>{m.profiles.name}</b>}<small>{new Date(m.created_at).toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}</small></span><p>{m.body}</p></div></div>})}{!plan.messages.length&&<p className="detail-empty">El chat arranca con el primer mensaje.</p>}</div><div className="chat-composer"><input value={composer} onChange={e=>setComposer(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Escribí un mensaje…"/><button onClick={send}><Send/></button></div></div>}
       {tab==="memories"&&<div className="memories-layout"><div className="photos-head"><div><h3>Fotos del Planardo</h3><p>Un álbum privado para quienes participaron.</p></div><button className="inline-create" onClick={()=>photoRef.current?.click()}><ImagePlus/> Subir foto</button><input ref={photoRef} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={async e=>{const f=e.target.files?.[0];if(f){await uploadPlanPhoto(id,f);refresh()}}}/></div>{plan.photos.length?<div className="photo-grid">{plan.photos.map((p:any)=><img src={p.url} alt={p.caption||"Foto del Planardo"} key={p.id}/>)}</div>:<div className="empty-state edge"><span className="empty-emoji">📷</span><h3>El álbum está vacío</h3><p>Subí la primera foto de este Planardo.</p></div>}<div className="comments-card edge"><h3>Comentarios</h3>{plan.comments.map((c:any)=><div className="comment-row" key={c.id}><Avatar initials={initials(c.profiles.name)} color={c.profiles.avatar_color} src={c.profiles.avatar_url} small/><div><b>{c.profiles.name}</b><p>{c.body}</p></div></div>)}<div className="chat-composer"><input value={comment} onChange={e=>setComment(e.target.value)} placeholder="Dejá un comentario…"/><button onClick={async()=>{if(comment.trim()){await addPlanComment(id,comment);setComment("");refresh()}}}><Send/></button></div></div></div>}
     </motion.div></AnimatePresence>
 
@@ -158,5 +204,6 @@ export default function PlanDetail({id,onBack,onDeleted,onOpenProfile}:{id:strin
         <button className="create-submit" disabled={editSaving||!editForm.name.trim()||!editForm.date} onClick={saveEdit}>{editSaving?"Guardando…":"Guardar cambios"} <Check size={18}/></button>
       </div>
     </motion.div></motion.div>}</AnimatePresence>
+    <AnimatePresence>{shareToast&&<motion.div className="toast" initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} exit={{opacity:0,y:12}}><span><Check/></span><div><b>Link copiado</b><p>Mandaselo a quien querés sumar a este Planardo.</p></div></motion.div>}</AnimatePresence>
   </section>
 }

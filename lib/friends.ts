@@ -52,6 +52,15 @@ export async function respondFriendRequest(requesterId: string, accept: boolean)
   }
 }
 
+export async function fetchFriendBusy(targetId: string, from: Date, to: Date) {
+  const db = client();
+  const { data, error } = await db.rpc("get_friend_busy", {
+    target_user: targetId, range_start: from.toISOString(), range_end: to.toISOString(),
+  });
+  if (error) throw error;
+  return (data || []) as { busy_from: string; busy_until: string }[];
+}
+
 export async function removeFriend(requesterId: string, addresseeId: string) {
   const db = client();
   const { error } = await db.from("friendships").delete()

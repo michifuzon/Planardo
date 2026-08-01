@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { createGroup, createInvite, deleteGroup, fetchMyGroupInviteRequests, inviteFriendToGroup, respondGroupInviteRequest, updateGroup, type Group, type Profile } from "@/lib/groups";
 import Avatar from "./Avatar";
 import AvailabilityView from "./AvailabilityView";
+import GroupChat from "./GroupChat";
 import { useAuth } from "./AuthProvider";
 
 const EMOJIS = ["👥", "💙", "🎉", "🏠", "🌮", "⚡", "🎮", "⭐"];
@@ -202,6 +203,11 @@ export default function GroupsView({
               </div>
             ))}
           </div>
+
+          <div className="section-title compact">
+            <div><h2>Chat del grupo</h2><p>Para coordinar sin depender de un plan puntual</p></div>
+          </div>
+          <GroupChat groupId={openGroup.id} />
 
           <div className="section-title compact">
             <div><h2>Agenda del grupo</h2><p>Disponibilidad compartida para armar el próximo plan</p></div>

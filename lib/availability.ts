@@ -17,15 +17,20 @@ export async function fetchAvailability(from:string,to:string): Promise<Availabi
   const {data,error}=await db.from("availability").select("id,day,status,time_from,time_to").eq("user_id",auth.user.id).gte("day",from).lte("day",to);
   if(error)throw error; return data||[];
 }
-export async function addAvailabilityBlock(day:string,status:"available"|"maybe"|"busy",timeFrom?:string,timeTo?:string){
+export async function addAvailabilityBlock(day:string,status:"available"|"maybe"|"busy",timeFrom?:string,timeTo?:string,planId?:string){
   const db=client();const {data:auth}=await db.auth.getUser();
   const {error}=await db.from("availability").insert({
-    day,status,user_id:auth.user?.id,time_from:timeFrom||null,time_to:timeTo||null,
+    day,status,user_id:auth.user?.id,time_from:timeFrom||null,time_to:timeTo||null,plan_id:planId||null,
   });
   if(error)throw error;
 }
 export async function removeAvailabilityBlock(id:string){
   const {error}=await client().from("availability").delete().eq("id",id);
+  if(error)throw error;
+}
+export async function removeAvailabilityForPlan(planId:string){
+  const db=client();const {data:auth}=await db.auth.getUser();
+  const {error}=await db.from("availability").delete().eq("plan_id",planId).eq("user_id",auth.user?.id);
   if(error)throw error;
 }
 export async function fetchGroupAvailability(groupId:string,from:Date,to:Date){

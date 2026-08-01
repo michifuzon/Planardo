@@ -79,22 +79,28 @@ export async function fetchMyPlans() {
 
 export async function fetchPlanDetail(id: string) {
   const db = client();
-  const [plan, checklist, items, timeline, expenses, transport, polls, messages, photos, comments] = await Promise.all([
+  const [plan, checklist, items, timeline, expenses, transport, riders, polls, messages, photos, comments] = await Promise.all([
     db.from("plans").select("*, group:groups(id,name,emoji), plan_members(response,role,user_id,attended,profiles(id,name,username,avatar_color,avatar_url))").eq("id",id).single(),
     db.from("plan_checklist").select("*,profiles:completed_by(name)").eq("plan_id",id).order("position"),
     db.from("plan_items").select("*,profiles:claimed_by(name,avatar_color,avatar_url)").eq("plan_id",id).order("created_at"),
     db.from("plan_timeline").select("*").eq("plan_id",id).order("starts_at"),
     db.from("plan_expenses").select("*,profiles:paid_by(name),plan_payments(*)").eq("plan_id",id),
     db.from("plan_transport").select("*,profiles:user_id(name,avatar_color,avatar_url)").eq("plan_id",id),
+    db.from("plan_ride_passengers").select("*,profiles:user_id(name,avatar_color,avatar_url)").eq("plan_id",id),
     db.from("polls").select("*,poll_options(*,poll_votes(*))").eq("plan_id",id).order("created_at"),
     db.from("plan_messages").select("*,profiles:user_id(name,avatar_color,avatar_url),message_reactions(*)").eq("plan_id",id).order("created_at"),
     db.from("plan_photos").select("*,profiles:uploaded_by(name,avatar_url)").eq("plan_id",id).order("created_at",{ascending:false}),
     db.from("plan_comments").select("*,profiles:user_id(name,avatar_color,avatar_url)").eq("plan_id",id).order("created_at"),
   ]);
   if (plan.error) throw plan.error;
+  const ridersByDriver = new Map<string,any[]>();
+  for (const r of (riders.data||[]) as any[]) {
+    (ridersByDriver.get(r.driver_id) || ridersByDriver.set(r.driver_id, []).get(r.driver_id)!).push(r);
+  }
   return {
     ...plan.data, checklist: checklist.data||[], items:items.data||[], timeline:timeline.data||[],
-    expenses:expenses.data||[], transport:transport.data||[], polls:polls.data||[], messages:messages.data||[],
+    expenses:expenses.data||[], polls:polls.data||[], messages:messages.data||[],
+    transport:(transport.data||[]).map((t:any)=>({...t,riders:ridersByDriver.get(t.user_id)||[]})),
     photos:photos.data||[], comments:comments.data||[],
   };
 }
@@ -111,6 +117,9 @@ export async function toggleChecklistItem(id:string,completed:boolean){
   const db=client(); const {data:auth}=await db.auth.getUser();
   const {error}=await db.from("plan_checklist").update({completed,completed_by:completed?auth.user?.id:null}).eq("id",id); if(error)throw error;
 }
+export async function deleteChecklistItem(id:string){
+  const {error}=await client().from("plan_checklist").delete().eq("id",id); if(error)throw error;
+}
 export async function addPlanItem(planId:string,label:string){
   const db=client(); const {data:auth}=await db.auth.getUser();
   const {error}=await db.from("plan_items").insert({plan_id:planId,label,created_by:auth.user?.id}); if(error)throw error;
@@ -119,12 +128,18 @@ export async function claimPlanItem(id:string,claim:boolean){
   const db=client(); const {data:auth}=await db.auth.getUser();
   const {error}=await db.from("plan_items").update({claimed_by:claim?auth.user?.id:null}).eq("id",id); if(error)throw error;
 }
+export async function deletePlanItem(id:string){
+  const {error}=await client().from("plan_items").delete().eq("id",id); if(error)throw error;
+}
 export async function addTimelineItem(planId:string,title:string,startsAt:string){
   const {error}=await client().from("plan_timeline").insert({plan_id:planId,title,starts_at:new Date(startsAt).toISOString()}); if(error)throw error;
 }
 export async function addExpense(planId:string,label:string,amount:number){
   const db=client(); const {data:auth}=await db.auth.getUser();
   const {error}=await db.from("plan_expenses").insert({plan_id:planId,label,amount,paid_by:auth.user?.id}); if(error)throw error;
+}
+export async function deleteExpense(id:string){
+  const {error}=await client().from("plan_expenses").delete().eq("id",id); if(error)throw error;
 }
 export async function addPoll(planId:string,question:string,options:string[]){
   const {data,error}=await client().rpc("create_poll",{target_plan:planId,poll_question:question,option_labels:options});
@@ -144,6 +159,16 @@ export async function setPlanTransport(planId:string,mode:string,seats:number){
   const db=client();const {data:auth}=await db.auth.getUser();
   const {error}=await db.from("plan_transport").upsert({plan_id:planId,user_id:auth.user?.id,mode,seats_available:seats});if(error)throw error;
 }
+export async function removePlanTransport(planId:string){
+  const db=client();const {data:auth}=await db.auth.getUser();
+  const {error}=await db.from("plan_transport").delete().eq("plan_id",planId).eq("user_id",auth.user?.id);if(error)throw error;
+}
+export async function joinPlanRide(planId:string,driverId:string){
+  const {error}=await client().rpc("join_plan_ride",{target_plan:planId,driver:driverId});if(error)throw error;
+}
+export async function leavePlanRide(planId:string,driverId:string){
+  const {error}=await client().rpc("leave_plan_ride",{target_plan:planId,driver:driverId});if(error)throw error;
+}
 export async function uploadPlanPhoto(planId:string,file:File){
   const db=client();const {data:auth}=await db.auth.getUser();if(!auth.user)throw new Error("No hay sesión");
   const ext=file.name.split(".").pop()||"jpg";const path=`${planId}/${auth.user.id}-${Date.now()}.${ext}`;
@@ -154,6 +179,22 @@ export async function uploadPlanPhoto(planId:string,file:File){
 export async function addPlanComment(planId:string,body:string){
   const db=client();const {data:auth}=await db.auth.getUser();
   const {error}=await db.from("plan_comments").insert({plan_id:planId,user_id:auth.user?.id,body});if(error)throw error;
+}
+export type PlanInvite={code:string;plan_id:string;plan_name:string;plan_emoji:string;plan_color:string;plan_group_id:string|null};
+export async function createPlanInvite(planId:string){
+  const {data,error}=await client().rpc("create_plan_invite",{target_plan:planId});
+  if(error)throw error;
+  return data as PlanInvite;
+}
+export async function fetchPlanInvite(code:string){
+  const {data,error}=await client().from("plan_invites").select("*").eq("code",code).maybeSingle();
+  if(error)throw error;
+  return data as PlanInvite|null;
+}
+export async function joinPlanWithInvite(code:string){
+  const {data,error}=await client().rpc("join_plan_with_invite",{invite_code:code});
+  if(error)throw error;
+  return data as string;
 }
 export async function deletePlan(planId:string){
   const {data,error}=await client().rpc("delete_plan",{target_plan:planId});

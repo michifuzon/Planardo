@@ -1,21 +1,25 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { X } from "lucide-react";
+import { CalendarDays, MessageCircle, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchProfileById, type FullProfile } from "@/lib/profiles";
 import Avatar from "./Avatar";
+import FriendCalendar from "./FriendCalendar";
+import DirectChat from "./DirectChat";
 
 const initials = (name: string) => name.slice(0, 2).toUpperCase();
 
-export default function PersonProfileModal({ id, onClose }: { id: string | null; onClose: () => void }) {
+export default function PersonProfileModal({ id, onClose, isFriend }: { id: string | null; onClose: () => void; isFriend?: boolean }) {
   const [profile, setProfile] = useState<FullProfile | null>(null);
   const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState<"profile" | "calendar" | "chat">("profile");
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
     setProfile(null);
+    setTab("profile");
     fetchProfileById(id).then(setProfile).catch(() => setProfile(null)).finally(() => setLoading(false));
   }, [id]);
 
@@ -35,7 +39,18 @@ export default function PersonProfileModal({ id, onClose }: { id: string | null;
                   <Avatar initials={initials(profile.name)} color={profile.avatar_color} src={profile.avatar_url} />
                   <h2>{profile.name}</h2>
                   <p className="person-profile-username">@{profile.username}</p>
-                  {profile.bio ? <p className="person-profile-bio">{profile.bio}</p> : <p className="person-profile-bio muted">Todavía no agregó una bio.</p>}
+
+                  {isFriend && (
+                    <div className="detail-tabs person-profile-tabs">
+                      <button className={tab === "profile" ? "active" : ""} onClick={() => setTab("profile")}><UserRound size={15} /><span>Perfil</span></button>
+                      <button className={tab === "calendar" ? "active" : ""} onClick={() => setTab("calendar")}><CalendarDays size={15} /><span>Calendario</span></button>
+                      <button className={tab === "chat" ? "active" : ""} onClick={() => setTab("chat")}><MessageCircle size={15} /><span>Chat</span></button>
+                    </div>
+                  )}
+
+                  {tab === "profile" && (profile.bio ? <p className="person-profile-bio">{profile.bio}</p> : <p className="person-profile-bio muted">Todavía no agregó una bio.</p>)}
+                  {tab === "calendar" && isFriend && <FriendCalendar friendId={profile.id} />}
+                  {tab === "chat" && isFriend && <DirectChat otherId={profile.id} />}
                 </div>
               </>
             )}
