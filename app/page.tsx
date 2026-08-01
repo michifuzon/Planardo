@@ -340,7 +340,7 @@ export default function Page() {
                 <div className="section-title"><div><h2>Próximos Planardos</h2><p>Planes reales de tus grupos</p></div></div>
                 {upcomingPlans.length ? <div className="event-track">{upcomingPlans.slice(0,3).map((plan:any)=>{
                   const date=new Date(plan.starts_at);
-                  return <article className="event-card" onClick={()=>setSelectedPlan(plan.id)} key={plan.id} style={{background:`linear-gradient(145deg,${plan.color},#21152f)`}}>
+                  return <article className="event-card" onClick={()=>setSelectedPlan(plan.id)} key={plan.id} style={plan.cover_url?{backgroundImage:`linear-gradient(180deg,rgba(10,8,16,.2),rgba(10,8,16,.8)),url(${plan.cover_url})`,backgroundSize:"cover",backgroundPosition:"center"}:{background:`linear-gradient(145deg,${plan.color},#21152f)`}}>
                     <div className="event-top"><span className="event-emoji">{plan.emoji}</span><span className={`event-status ${plan.my_response}`}><i/> {plan.my_response==="going"?"Voy":plan.my_response==="maybe"?"Tal vez":plan.my_response==="declined"?"No puedo":"Pendiente"}</span></div>
                     <div className="event-main"><p>{date.toLocaleDateString("es-AR",{weekday:"long",day:"numeric"}).toUpperCase()} · {date.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}</p><h3>{plan.name}</h3>{plan.place_name&&<div className="place"><MapPin size={17}/>{plan.place_name}</div>}</div>
                     <div className="event-bottom"><span className="people-count">{plan.plan_members?.length || 1} invitados</span><button><ChevronRight/></button></div>

@@ -49,9 +49,20 @@ export default function AvailabilityView({groups,plans=[],onSelectPlan}:{groups:
   const selected=groups.find(g=>g.id===groupId);
   const members=selected?.members||[];
   const dataReady=busyForGroup===groupId;
-  const isBusy=(userId:string,day:Date)=>{
+  const busyRangesOn=(userId:string,day:Date)=>{
     const from=dayStart(day),until=new Date(from);until.setDate(until.getDate()+1);
-    return busy.some(row=>row.user_id===userId&&row.busy_from&&new Date(row.busy_from)<until&&new Date(row.busy_until)>from);
+    return busy.filter(row=>row.user_id===userId&&row.busy_from&&new Date(row.busy_from)<until&&new Date(row.busy_until)>from)
+      .map(row=>({from:new Date(row.busy_from),to:new Date(row.busy_until)}));
+  };
+  const isBusy=(userId:string,day:Date)=>busyRangesOn(userId,day).length>0;
+  const fmtTime=(d:Date)=>d.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
+  const busyLabel=(userId:string,day:Date)=>{
+    const from=dayStart(day),until=new Date(from);until.setDate(until.getDate()+1);
+    const ranges=busyRangesOn(userId,day);
+    if(!ranges.length)return "Disponible todo el día";
+    const fullDay=ranges.some(r=>r.from<=from&&r.to>=until);
+    if(fullDay)return "Ocupado todo el día";
+    return ranges.map(r=>`Ocupado ${fmtTime(r.from<from?from:r.from)}–${fmtTime(r.to>until?until:r.to)}`).join(" · ");
   };
   const freeOn=(day:Date)=>members.filter(m=>!isBusy(m.id,day));
   const scores=week.map(day=>({day,free:freeOn(day).length}));
@@ -68,7 +79,7 @@ export default function AvailabilityView({groups,plans=[],onSelectPlan}:{groups:
   if(!groups.length)return <div className="empty-state edge"><span className="empty-emoji">👥</span><h3>Primero necesitás un grupo</h3><p>La disponibilidad compartida aparece cuando hay integrantes para comparar.</p></div>;
   return <section className="availability-smart">
     <div className="availability-toolbar">{groups.length>1?<label><span>Disponibilidad de</span><select value={groupId} onChange={e=>{setGroupId(e.target.value);setSelectedDay(null)}}>{groups.map(g=><option value={g.id} key={g.id}>{g.emoji} {g.name}</option>)}</select></label>:<span className="availability-toolbar-title">Disponibilidad de {selected?.emoji} {selected?.name}</span>}<span className="privacy-note"><LockKeyhole/> Solo se comparte ocupado o libre</span></div>
-    <div className="best-date edge"><span><Sparkles/></span><div><p className="eyebrow">MEJOR FECHA AUTOMÁTICA</p><h2>{dataReady&&best&&members.length?`${cap(best.day.toLocaleDateString("es-AR",{weekday:"long",day:"numeric"}))}: ${best.free} de ${members.length} pueden`:"Calculando disponibilidad…"}</h2><p>Los detalles de planes pertenecientes a otros grupos permanecen privados.</p></div></div>
+    <div className="best-date edge"><span><Sparkles/></span><div><p className="eyebrow">MEJOR FECHA AUTOMÁTICA</p><h2>{dataReady&&best&&members.length?`${cap(best.day.toLocaleDateString("es-AR",{weekday:"long",day:"numeric"}))}: ${best.free}/${members.length} pueden`:"Calculando disponibilidad…"}</h2><p>Los detalles de planes pertenecientes a otros grupos permanecen privados.</p></div></div>
 
     <section className="calendar-section availability-calendar">
       <div className="calendar-card edge">
@@ -116,7 +127,7 @@ export default function AvailabilityView({groups,plans=[],onSelectPlan}:{groups:
               <div className="availability-list">
                 {members.map(m=>{
                   const occupied=dataReady&&isBusy(m.id,selectedDay);
-                  return <div key={m.id}><Avatar initials={initials(m.name)} color={m.avatar_color} src={m.avatar_url} small/><span><b>{m.name}</b><small>{!dataReady?"Cargando…":occupied?"Ocupado":"Disponible"}</small></span><i className={occupied?"busy":""}/></div>;
+                  return <div key={m.id}><Avatar initials={initials(m.name)} color={m.avatar_color} src={m.avatar_url} small/><span><b>{m.name}</b><small>{!dataReady?"Cargando…":busyLabel(m.id,selectedDay)}</small></span><i className={occupied?"busy":""}/></div>;
                 })}
               </div>
             ):<p className="availability-note">Este grupo todavía no tiene integrantes.</p>}
