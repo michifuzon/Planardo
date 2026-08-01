@@ -23,6 +23,13 @@ export async function fetchMyProfile() {
   return data as FullProfile;
 }
 
+export async function fetchProfileById(id: string) {
+  const db = client();
+  const { data, error } = await db.from("profiles").select("*").eq("id", id).single();
+  if (error) throw error;
+  return data as FullProfile;
+}
+
 export async function usernameAvailable(username: string) {
   const db = client();
   const { data: auth } = await db.auth.getUser();

@@ -15,6 +15,7 @@ import GroupsView from "./components/GroupsView";
 import FriendsView from "./components/FriendsView";
 import ProfileView from "./components/ProfileView";
 import PlanDetail from "./components/PlanDetail";
+import PersonProfileModal from "./components/PersonProfileModal";
 import { createPlan, fetchMyPlans } from "@/lib/plans";
 import { fetchNotifications, markNotificationsRead } from "@/lib/notifications";
 import { fetchMyProfile, type FullProfile } from "@/lib/profiles";
@@ -57,6 +58,7 @@ export default function Page() {
   const [groupsLoading, setGroupsLoading] = useState(true);
   const [groupsError, setGroupsError] = useState("");
   const [groupToOpen, setGroupToOpen] = useState<string | null>(null);
+  const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
   const [plans, setPlans] = useState<any[]>([]);
   const [directFriends, setDirectFriends] = useState<Profile[]>([]);
   const [picked, setPicked] = useState<string[]>([]);
@@ -259,7 +261,7 @@ export default function Page() {
         </header>
 
         <div className="page-content">
-          {selectedPlan && <PlanDetail id={selectedPlan} onBack={()=>{setSelectedPlan(null);fetchMyPlans().then(setPlans).catch(()=>{});}} onDeleted={()=>fetchMyPlans().then(setPlans).catch(()=>{})}/>}
+          {selectedPlan && <PlanDetail id={selectedPlan} onBack={()=>{setSelectedPlan(null);fetchMyPlans().then(setPlans).catch(()=>{});}} onDeleted={()=>fetchMyPlans().then(setPlans).catch(()=>{})} onOpenProfile={setViewingProfileId}/>}
           {!selectedPlan && <>
           {active === "home" && (
             <>
@@ -429,10 +431,10 @@ export default function Page() {
           )}
 
           {active === "groups" && (
-            <GroupsView groups={groups} loading={groupsLoading} onRefresh={refreshGroups} initialOpenGroupId={groupToOpen} plans={plans} onSelectPlan={setSelectedPlan} />
+            <GroupsView groups={groups} loading={groupsLoading} onRefresh={refreshGroups} initialOpenGroupId={groupToOpen} plans={plans} onSelectPlan={setSelectedPlan} onOpenProfile={setViewingProfileId} />
           )}
 
-          {active === "friends" && <FriendsView />}
+          {active === "friends" && <FriendsView onOpenProfile={setViewingProfileId} />}
 
           {active === "history" && <>
             <div className="greeting"><div><p className="eyebrow">RECUERDOS</p><h1>Historial</h1><p>Los planes terminan; las historias quedan.</p></div></div>
@@ -497,6 +499,7 @@ export default function Page() {
         </motion.div>}
       </AnimatePresence>
       <AnimatePresence>{toast&&<motion.div className="toast" initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} exit={{opacity:0,y:12}}><span><Check/></span><div><b>¡Planardo creado!</b><p>Ahora invitá a tus amigos</p></div></motion.div>}</AnimatePresence>
+      <PersonProfileModal id={viewingProfileId} onClose={() => setViewingProfileId(null)} />
     </main>
   );
 }

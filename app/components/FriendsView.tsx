@@ -8,7 +8,7 @@ import Avatar from "./Avatar";
 
 function initials(name:string){ return name.slice(0,2).toUpperCase(); }
 
-export default function FriendsView() {
+export default function FriendsView({ onOpenProfile }: { onOpenProfile?: (id: string) => void }) {
   const [query,setQuery]=useState("");
   const [results,setResults]=useState<FullProfile[]>([]);
   const [relationships,setRelationships]=useState<any[]>([]);
@@ -45,7 +45,7 @@ export default function FriendsView() {
     {message&&<p className="friends-message">{message}</p>}
     {pending.length>0&&<><div className="section-title compact"><div><h2>Solicitudes</h2><p>{pending.length} esperando tu respuesta</p></div></div><div className="people-list">{pending.map(r=><div className="person-card edge" key={r.person.id}><Avatar initials={initials(r.person.name)} color={r.person.avatar_color} src={r.person.avatar_url}/><span><b>{r.person.name}</b><small>@{r.person.username}</small></span><div><button className="accept" onClick={()=>answer(r.requester_id,true)}><Check/></button><button onClick={()=>answer(r.requester_id,false)}><X/></button></div></div>)}</div></>}
     <div className="section-title compact"><div><h2>Tus amigos</h2><p>{loading?"Cargando…":`${friends.length} conexiones`}</p></div></div>
-    {loading?<p className="groups-status">Cargando tus amigos…</p>:friends.length?<div className="people-list">{friends.map(r=><div className="person-card edge" key={r.person.id}><Avatar initials={initials(r.person.name)} color={r.person.avatar_color} src={r.person.avatar_url}/><span><b>{r.person.name}</b><small>@{r.person.username}</small></span><button className="remove-friend" onClick={()=>setRemoveTarget(r)} title="Quitar amigo"><UserMinus/></button></div>)}</div>:<div className="empty-state edge"><span className="empty-emoji">👋</span><h3>Tu lista está lista para crecer</h3><p>Buscá a alguien por su username y mandale una solicitud.</p></div>}
+    {loading?<p className="groups-status">Cargando tus amigos…</p>:friends.length?<div className="people-list">{friends.map(r=><div className="person-card edge" key={r.person.id} onClick={()=>onOpenProfile?.(r.person.id)} style={onOpenProfile?{cursor:"pointer"}:undefined}><Avatar initials={initials(r.person.name)} color={r.person.avatar_color} src={r.person.avatar_url}/><span><b>{r.person.name}</b><small>@{r.person.username}</small></span><button className="remove-friend" onClick={(e)=>{e.stopPropagation();setRemoveTarget(r)}} title="Quitar amigo"><UserMinus/></button></div>)}</div>:<div className="empty-state edge"><span className="empty-emoji">👋</span><h3>Tu lista está lista para crecer</h3><p>Buscá a alguien por su username y mandale una solicitud.</p></div>}
     {removeTarget&&<div className="confirm-remove edge"><div><b>¿Quitar a {removeTarget.person.name}?</b><p>Dejarán de aparecer como amigos, pero seguirán compartiendo los grupos donde ambos estén.</p></div><button onClick={()=>setRemoveTarget(null)}>Cancelar</button><button className="danger" onClick={confirmRemove}>Quitar</button></div>}
   </section>;
 }

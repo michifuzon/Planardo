@@ -22,6 +22,7 @@ export default function GroupsView({
   initialOpenGroupId,
   plans,
   onSelectPlan,
+  onOpenProfile,
 }: {
   groups: Group[];
   loading: boolean;
@@ -29,6 +30,7 @@ export default function GroupsView({
   initialOpenGroupId?: string | null;
   plans?: any[];
   onSelectPlan?: (id: string) => void;
+  onOpenProfile?: (id: string) => void;
 }) {
   const { user } = useAuth();
   const [openGroupId, setOpenGroupId] = useState<string | null>(initialOpenGroupId ?? null);
@@ -169,7 +171,7 @@ export default function GroupsView({
           </div>
           <div className="group-member-list">
             {openGroup.members.map((m) => (
-              <div className="person-card edge" key={m.id}>
+              <div className="person-card edge" key={m.id} onClick={() => onOpenProfile?.(m.id)} role={onOpenProfile ? "button" : undefined} style={onOpenProfile ? { cursor: "pointer" } : undefined}>
                 <Avatar initials={initialsOf(m.name)} color={m.avatar_color} src={m.avatar_url} />
                 <span><b>{m.name}</b>{m.id === openGroup.created_by && <small className="owner-tag"><Crown size={11} /> Creador/a</small>}</span>
               </div>
