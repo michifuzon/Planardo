@@ -58,7 +58,7 @@ export async function fetchFriendBusy(targetId: string, from: Date, to: Date) {
     target_user: targetId, range_start: from.toISOString(), range_end: to.toISOString(),
   });
   if (error) throw error;
-  return (data || []) as { busy_from: string; busy_until: string }[];
+  return (data || []) as { busy_from: string; busy_until: string; plan_name: string | null; plan_emoji: string | null }[];
 }
 
 export async function removeFriend(requesterId: string, addresseeId: string) {

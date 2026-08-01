@@ -1,12 +1,12 @@
 "use client";
 
-import { Camera, Check, LoaderCircle, Save, Share2 } from "lucide-react";
+import { Camera, Check, LoaderCircle, Save, Share2, ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { fetchMyProfile, fetchMyStats, updateMyProfile, usernameAvailable, type FullProfile } from "@/lib/profiles";
 import AvatarCropper from "./AvatarCropper";
 
-export default function ProfileView({ fallbackName, email, groupCount, friendCount, onChanged }: {
-  fallbackName: string; email?: string; groupCount: number; friendCount: number; onChanged?: (profile: FullProfile) => void;
+export default function ProfileView({ fallbackName, email, groupCount, friendCount, onChanged, isAdmin, onOpenAdmin }: {
+  fallbackName: string; email?: string; groupCount: number; friendCount: number; onChanged?: (profile: FullProfile) => void; isAdmin?: boolean; onOpenAdmin?: () => void;
 }) {
   const [profile, setProfile] = useState<FullProfile | null>(null);
   const [name, setName] = useState(fallbackName);
@@ -94,6 +94,7 @@ export default function ProfileView({ fallbackName, email, groupCount, friendCou
           <div className="profile-stats"><span><b>{stats.groups}</b> grupos</span><span><b>{stats.friends}</b> amigos</span></div>
         </div>
         {profile && <button type="button" className="inline-create share-profile-btn" onClick={shareProfile}><Share2 size={14}/> Compartir mi perfil</button>}
+        {isAdmin && <button type="button" className="inline-create share-profile-btn" onClick={onOpenAdmin}><ShieldCheck size={14}/> Panel de administración</button>}
         <div className="profile-fields">
           <label><span>Nombre</span><input value={name} onChange={(e)=>setName(e.target.value)} maxLength={50}/></label>
           <label><span>Username único</span><div className="username-input"><i>@</i><input value={username} onChange={(e)=>setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,""))} minLength={3} maxLength={24}/></div></label>

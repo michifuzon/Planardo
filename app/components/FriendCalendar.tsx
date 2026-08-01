@@ -10,7 +10,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 
 export default function FriendCalendar({ friendId }: { friendId: string }) {
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
-  const [ranges, setRanges] = useState<{ busy_from: string; busy_until: string }[]>([]);
+  const [ranges, setRanges] = useState<{ busy_from: string; busy_until: string; plan_name: string | null; plan_emoji: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
@@ -40,12 +40,12 @@ export default function FriendCalendar({ friendId }: { friendId: string }) {
     if (!rs.length) return "Libre todo el día";
     const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate());
     const dayEnd = new Date(dayStart.getTime() + 86400000);
-    const fullDay = rs.some(r => new Date(r.busy_from) <= dayStart && new Date(r.busy_until) >= dayEnd);
-    if (fullDay) return "Ocupado todo el día";
     const fmt = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
     return rs.map(r => {
+      if (r.plan_name) return `Va a ${r.plan_emoji || "🎉"} ${r.plan_name}`;
       const from = new Date(r.busy_from), until = new Date(r.busy_until);
-      return `Ocupado ${fmt(from < dayStart ? dayStart : from)}–${fmt(until > dayEnd ? dayEnd : until)}`;
+      const fullDay = from <= dayStart && until >= dayEnd;
+      return fullDay ? "Ocupado todo el día" : `Ocupado ${fmt(from < dayStart ? dayStart : from)}–${fmt(until > dayEnd ? dayEnd : until)}`;
     }).join(" · ");
   }
 

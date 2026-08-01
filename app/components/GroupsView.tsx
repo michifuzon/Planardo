@@ -25,6 +25,7 @@ export default function GroupsView({
   onSelectPlan,
   onOpenProfile,
   friends = [],
+  isAdmin = false,
 }: {
   groups: Group[];
   loading: boolean;
@@ -34,6 +35,7 @@ export default function GroupsView({
   onSelectPlan?: (id: string) => void;
   onOpenProfile?: (id: string) => void;
   friends?: Profile[];
+  isAdmin?: boolean;
 }) {
   const { user } = useAuth();
   const [openGroupId, setOpenGroupId] = useState<string | null>(initialOpenGroupId ?? null);
@@ -180,7 +182,7 @@ export default function GroupsView({
             <button className="pulse-secondary" onClick={() => handleInvite(openGroup.id)}>
               <LinkIcon size={15} /> Invitar
             </button>
-            {openGroup.created_by === user?.id && (
+            {(openGroup.created_by === user?.id || isAdmin) && (
               <>
                 <button className="group-delete" onClick={() => openEdit(openGroup)} aria-label="Editar grupo">
                   <Pencil size={15} />

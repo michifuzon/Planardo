@@ -16,6 +16,7 @@ import FriendsView from "./components/FriendsView";
 import ProfileView from "./components/ProfileView";
 import PlanDetail from "./components/PlanDetail";
 import PersonProfileModal from "./components/PersonProfileModal";
+import AdminView from "./components/AdminView";
 import { createPlan, fetchMyPlans } from "@/lib/plans";
 import { fetchNotifications, markNotificationsRead } from "@/lib/notifications";
 import { fetchMyProfile, type FullProfile } from "@/lib/profiles";
@@ -59,6 +60,8 @@ export default function Page() {
   const [groupsError, setGroupsError] = useState("");
   const [groupToOpen, setGroupToOpen] = useState<string | null>(null);
   const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
+  const [viewingProfileTab, setViewingProfileTab] = useState<"profile"|"calendar"|"chat">("profile");
+  const openProfile = useCallback((id:string, tab:"profile"|"calendar"|"chat"="profile")=>{setViewingProfileTab(tab);setViewingProfileId(id)},[]);
   const [plans, setPlans] = useState<any[]>([]);
   const [directFriends, setDirectFriends] = useState<Profile[]>([]);
   const [picked, setPicked] = useState<string[]>([]);
@@ -257,11 +260,11 @@ export default function Page() {
             }}><Bell size={19}/>{notifications.some(n=>!n.read_at)&&<i/>}</button>
             <button className="top-profile-button" onClick={()=>{setActive("profile");setSelectedPlan(null)}} aria-label="Abrir mi perfil"><Avatar initials={initials} color="linear-gradient(135deg,#8b5cf6,#ec4899)" src={myProfile?.avatar_url}/></button>
           </div>
-          <AnimatePresence>{notificationsOpen&&<motion.div className="notifications-panel edge" initial={{opacity:0,y:-6,scale:.98}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-5}}><div className="notifications-head"><div><p className="eyebrow">ACTIVIDAD</p><h3>Notificaciones</h3></div><button onClick={()=>setNotificationsOpen(false)}><X/></button></div>{notifications.length?notifications.map(n=><button className="notification-row" key={n.id} onClick={()=>{if(n.type==="friend_request")setActive("friends");else if(n.plan_id)setSelectedPlan(n.plan_id);else if(n.type==="group_invite_request")setActive("groups");else if(n.type==="group_added"&&n.group_id){setGroupToOpen(n.group_id);setActive("groups")}setNotificationsOpen(false)}}><span>{n.type==="plan_invite"?"🎉":n.type==="plan_updated"?"📝":n.type==="plan_cancelled"?"🚫":n.type==="group_added"?"👥":n.type==="group_invite_request"?"✉️":n.type==="friend_accepted"?"🤝":n.type==="attendance"?"✓":n.type==="poll"?"◉":n.type==="location"?"⌖":n.type==="friend_request"?"👋":"•"}</span><div><b>{n.title}</b>{n.body&&<p>{n.body}</p>}<small>{new Date(n.created_at).toLocaleString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</small></div></button>):<div className="notifications-empty"><p>Todo tranquilo por acá.</p></div>}</motion.div>}</AnimatePresence>
+          <AnimatePresence>{notificationsOpen&&<motion.div className="notifications-panel edge" initial={{opacity:0,y:-6,scale:.98}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-5}}><div className="notifications-head"><div><p className="eyebrow">ACTIVIDAD</p><h3>Notificaciones</h3></div><button onClick={()=>setNotificationsOpen(false)}><X/></button></div>{notifications.length?notifications.map(n=><button className="notification-row" key={n.id} onClick={()=>{if(n.type==="friend_request")setActive("friends");else if(n.plan_id)setSelectedPlan(n.plan_id);else if(n.type==="group_invite_request")setActive("groups");else if((n.type==="group_added"||n.type==="group_message")&&n.group_id){setGroupToOpen(n.group_id);setActive("groups")}else if(n.type==="direct_message"&&n.related_user_id){openProfile(n.related_user_id,"chat")}setNotificationsOpen(false)}}><span>{n.type==="plan_invite"?"🎉":n.type==="plan_updated"?"📝":n.type==="plan_cancelled"?"🚫":n.type==="group_added"?"👥":n.type==="group_invite_request"?"✉️":n.type==="group_message"?"💬":n.type==="direct_message"?"💬":n.type==="friend_accepted"?"🤝":n.type==="attendance"?"✓":n.type==="poll"?"◉":n.type==="location"?"⌖":n.type==="friend_request"?"👋":"•"}</span><div><b>{n.title}</b>{n.body&&<p>{n.body}</p>}<small>{new Date(n.created_at).toLocaleString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</small></div></button>):<div className="notifications-empty"><p>Todo tranquilo por acá.</p></div>}</motion.div>}</AnimatePresence>
         </header>
 
         <div className="page-content">
-          {selectedPlan && <PlanDetail id={selectedPlan} onBack={()=>{setSelectedPlan(null);fetchMyPlans().then(setPlans).catch(()=>{});}} onDeleted={()=>fetchMyPlans().then(setPlans).catch(()=>{})} onOpenProfile={setViewingProfileId}/>}
+          {selectedPlan && <PlanDetail id={selectedPlan} onBack={()=>{setSelectedPlan(null);fetchMyPlans().then(setPlans).catch(()=>{});}} onDeleted={()=>fetchMyPlans().then(setPlans).catch(()=>{})} onOpenProfile={openProfile} isAdmin={!!myProfile?.is_admin}/>}
           {!selectedPlan && <>
           {active === "home" && (
             <>
@@ -430,10 +433,10 @@ export default function Page() {
           )}
 
           {active === "groups" && (
-            <GroupsView groups={groups} loading={groupsLoading} onRefresh={refreshGroups} initialOpenGroupId={groupToOpen} plans={plans} onSelectPlan={setSelectedPlan} onOpenProfile={setViewingProfileId} friends={directFriends} />
+            <GroupsView groups={groups} loading={groupsLoading} onRefresh={refreshGroups} initialOpenGroupId={groupToOpen} plans={plans} onSelectPlan={setSelectedPlan} onOpenProfile={openProfile} friends={directFriends} isAdmin={!!myProfile?.is_admin} />
           )}
 
-          {active === "friends" && <FriendsView onOpenProfile={setViewingProfileId} />}
+          {active === "friends" && <FriendsView onOpenProfile={openProfile} />}
 
           {active === "history" && <>
             <div className="greeting"><div><p className="eyebrow">RECUERDOS</p><h1>Historial</h1><p>Los planes terminan; las historias quedan.</p></div></div>
@@ -441,8 +444,9 @@ export default function Page() {
           </>}
 
           {active === "profile" && (
-            <ProfileView fallbackName={name} email={user?.email} groupCount={groups.length} friendCount={directFriends.length} onChanged={setMyProfile}/>
+            <ProfileView fallbackName={name} email={user?.email} groupCount={groups.length} friendCount={directFriends.length} onChanged={setMyProfile} isAdmin={!!myProfile?.is_admin} onOpenAdmin={()=>setActive("admin")}/>
           )}
+          {active === "admin" && myProfile?.is_admin && <AdminView/>}
           </>}
         </div>
       </section>
@@ -498,7 +502,7 @@ export default function Page() {
         </motion.div>}
       </AnimatePresence>
       <AnimatePresence>{toast&&<motion.div className="toast" initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} exit={{opacity:0,y:12}}><span><Check/></span><div><b>¡Planardo creado!</b><p>Ahora invitá a tus amigos</p></div></motion.div>}</AnimatePresence>
-      <PersonProfileModal id={viewingProfileId} onClose={() => setViewingProfileId(null)} isFriend={!!viewingProfileId && directFriends.some(f=>f.id===viewingProfileId)} />
+      <PersonProfileModal id={viewingProfileId} onClose={() => { setViewingProfileId(null); setViewingProfileTab("profile"); }} isFriend={!!viewingProfileId && directFriends.some(f=>f.id===viewingProfileId)} initialTab={viewingProfileTab} />
     </main>
   );
 }

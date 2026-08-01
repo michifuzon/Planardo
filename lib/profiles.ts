@@ -7,6 +7,7 @@ export type FullProfile = {
   avatar_color: string;
   avatar_url: string | null;
   bio: string | null;
+  is_admin?: boolean;
 };
 
 function client() {

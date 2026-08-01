@@ -10,7 +10,7 @@ import DirectChat from "./DirectChat";
 
 const initials = (name: string) => name.slice(0, 2).toUpperCase();
 
-export default function PersonProfileModal({ id, onClose, isFriend }: { id: string | null; onClose: () => void; isFriend?: boolean }) {
+export default function PersonProfileModal({ id, onClose, isFriend, initialTab = "profile" }: { id: string | null; onClose: () => void; isFriend?: boolean; initialTab?: "profile" | "calendar" | "chat" }) {
   const [profile, setProfile] = useState<FullProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<"profile" | "calendar" | "chat">("profile");
@@ -19,8 +19,9 @@ export default function PersonProfileModal({ id, onClose, isFriend }: { id: stri
     if (!id) return;
     setLoading(true);
     setProfile(null);
-    setTab("profile");
+    setTab(initialTab);
     fetchProfileById(id).then(setProfile).catch(() => setProfile(null)).finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   return (
