@@ -1,13 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, CalendarDays, Car, Check, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, ExternalLink, ImagePlus, ListChecks, MapPin, MessageCircle, Pencil, Plus, Send, Trash2, Users, Vote, X, XCircle } from "lucide-react";
+import { ArrowLeft, CalendarDays, CalendarPlus, Car, Check, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, ExternalLink, ImagePlus, ListChecks, MapPin, MessageCircle, Pencil, Plus, Send, Trash2, Users, Vote, X, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addChecklistItem, addExpense, addPlanItem, addPoll, addTimelineItem, claimPlanItem,
   addPlanComment, cancelPlan, deletePoll, fetchPlanDetail, respondToPlan, sendPlanMessage, setPlanTransport, toggleChecklistItem, updatePlan, uploadPlanPhoto, votePoll,
 } from "@/lib/plans";
 import { cap } from "@/lib/format";
+import { downloadPlanICS } from "@/lib/ics";
 import Avatar from "./Avatar";
 import { useAuth } from "./AuthProvider";
 
@@ -107,7 +108,7 @@ export default function PlanDetail({id,onBack,onDeleted}:{id:string;onBack:()=>v
     <button className="detail-back" onClick={onBack}><ArrowLeft size={17}/> Volver</button>
     <div className="plan-hero edge" style={{"--plan-color":plan.color} as React.CSSProperties}>
       {plan.cover_url&&<img className="plan-cover" src={plan.cover_url} alt=""/>}
-      <div className="plan-hero-top"><span className="plan-big-emoji">{plan.emoji}</span><div className="plan-hero-actions"><span className="plan-type">{plan.plan_type||"Plan"}</span>{plan.created_by===user?.id&&plan.status!=="cancelled"&&<><button onClick={openEdit} aria-label="Editar el Planardo"><Pencil/><span>Editar</span></button><button onClick={()=>setConfirmDelete(true)} aria-label="Dar de baja el Planardo"><XCircle/><span>Dar de baja</span></button></>}</div></div>
+      <div className="plan-hero-top"><span className="plan-big-emoji">{plan.emoji}</span><div className="plan-hero-actions"><span className="plan-type">{plan.plan_type||"Plan"}</span><button onClick={()=>downloadPlanICS(plan)} aria-label="Agregar a mi calendario"><CalendarPlus/><span>A mi calendario</span></button>{plan.created_by===user?.id&&plan.status!=="cancelled"&&<><button onClick={openEdit} aria-label="Editar el Planardo"><Pencil/><span>Editar</span></button><button onClick={()=>setConfirmDelete(true)} aria-label="Dar de baja el Planardo"><XCircle/><span>Dar de baja</span></button></>}</div></div>
       <div><p>{start.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"}).toUpperCase()}</p><h1>{plan.name}</h1><span className="hero-meta"><Clock3 size={15}/>{start.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}{end&&<> · {days>1?`${days} días · ${days-1} noches`:`hasta ${end.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}`}</>}</span>{plan.place_name&&<span className="hero-meta"><MapPin size={15}/>{plan.place_name}{plan.location_url&&<a href={plan.location_url} target="_blank"><ExternalLink size={13}/></a>}</span>}</div>
       <div className="hero-people"><div>{plan.plan_members.slice(0,6).map((m:any)=><Avatar key={m.user_id} initials={initials(m.profiles.name)} color={m.profiles.avatar_color} src={m.profiles.avatar_url}/>)}</div><span><b>{stats.going}</b> confirmados · {stats.pending} pendientes</span></div>
     </div>

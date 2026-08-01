@@ -219,6 +219,7 @@ export default function Page() {
     return !rows.some(r => r.from <= dayStartToday && r.until >= dayEndToday);
   }, [todayBusy]);
   const availableToday = useMemo(() => friends.filter(f => isFreeToday(f.id)), [friends, isFreeToday]);
+  const upcomingPlans = useMemo(() => plans.filter((p: any) => new Date(p.ends_at || p.starts_at) >= new Date()), [plans]);
 
   return (
     <main className="app-shell">
@@ -335,7 +336,7 @@ export default function Page() {
               </section>
               <section className="upcoming">
                 <div className="section-title"><div><h2>Próximos Planardos</h2><p>Planes reales de tus grupos</p></div></div>
-                {plans.length ? <div className="event-track">{plans.slice(0,3).map((plan:any)=>{
+                {upcomingPlans.length ? <div className="event-track">{upcomingPlans.slice(0,3).map((plan:any)=>{
                   const date=new Date(plan.starts_at);
                   return <article className="event-card" onClick={()=>setSelectedPlan(plan.id)} key={plan.id} style={{background:`linear-gradient(145deg,${plan.color},#21152f)`}}>
                     <div className="event-top"><span className="event-emoji">{plan.emoji}</span><span className={`event-status ${plan.my_response}`}><i/> {plan.my_response==="going"?"Voy":plan.my_response==="maybe"?"Tal vez":plan.my_response==="declined"?"No puedo":"Pendiente"}</span></div>
@@ -428,7 +429,7 @@ export default function Page() {
           )}
 
           {active === "groups" && (
-            <GroupsView groups={groups} loading={groupsLoading} onRefresh={refreshGroups} initialOpenGroupId={groupToOpen} />
+            <GroupsView groups={groups} loading={groupsLoading} onRefresh={refreshGroups} initialOpenGroupId={groupToOpen} plans={plans} onSelectPlan={setSelectedPlan} />
           )}
 
           {active === "friends" && <FriendsView />}

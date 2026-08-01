@@ -20,11 +20,15 @@ export default function GroupsView({
   loading,
   onRefresh,
   initialOpenGroupId,
+  plans,
+  onSelectPlan,
 }: {
   groups: Group[];
   loading: boolean;
   onRefresh: () => void;
   initialOpenGroupId?: string | null;
+  plans?: any[];
+  onSelectPlan?: (id: string) => void;
 }) {
   const { user } = useAuth();
   const [openGroupId, setOpenGroupId] = useState<string | null>(initialOpenGroupId ?? null);
@@ -175,7 +179,7 @@ export default function GroupsView({
           <div className="section-title compact">
             <div><h2>Agenda del grupo</h2><p>Disponibilidad compartida para armar el próximo plan</p></div>
           </div>
-          <AvailabilityView groups={[openGroup]} />
+          <AvailabilityView groups={[openGroup]} plans={plans} onSelectPlan={onSelectPlan} />
 
           {confirmDeleteId && (
             <div className="confirm-remove edge">

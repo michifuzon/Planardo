@@ -10,7 +10,7 @@ import Avatar from "./Avatar";
 const initials=(name:string)=>name.slice(0,2).toUpperCase();
 const dayStart=(d:Date)=>new Date(d.getFullYear(),d.getMonth(),d.getDate());
 
-export default function AvailabilityView({groups}:{groups:Group[]}){
+export default function AvailabilityView({groups,plans=[],onSelectPlan}:{groups:Group[];plans?:any[];onSelectPlan?:(id:string)=>void}){
   const [groupId,setGroupId]=useState(groups[0]?.id||"");
   const [month,setMonth]=useState(()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),1)});
   const [selectedDay,setSelectedDay]=useState<Date|null>(null);
@@ -56,6 +56,14 @@ export default function AvailabilityView({groups}:{groups:Group[]}){
   const freeOn=(day:Date)=>members.filter(m=>!isBusy(m.id,day));
   const scores=week.map(day=>({day,free:freeOn(day).length}));
   const best=[...scores].sort((a,b)=>b.free-a.free)[0];
+  const groupPlansOnDay=(day:Date)=>{
+    const from=dayStart(day),until=new Date(from);until.setDate(until.getDate()+1);
+    return plans.filter((p:any)=>{
+      if(p.group_id!==groupId)return false;
+      const start=new Date(p.starts_at),end=p.ends_at?new Date(p.ends_at):start;
+      return start<until&&end>=from;
+    });
+  };
 
   if(!groups.length)return <div className="empty-state edge"><span className="empty-emoji">👥</span><h3>Primero necesitás un grupo</h3><p>La disponibilidad compartida aparece cuando hay integrantes para comparar.</p></div>;
   return <section className="availability-smart">
@@ -73,10 +81,13 @@ export default function AvailabilityView({groups}:{groups:Group[]}){
           {days.map((day,i)=>{
             if(day===null)return <div className="day muted" key={i}/>;
             const free=dataReady?freeOn(day):[];
+            const dayPlans=groupPlansOnDay(day);
             return (
-              <button key={i} onClick={()=>setSelectedDay(day)} className={`day ${selectedDay?.toDateString()===day.toDateString()?"selected":""} ${day.toDateString()===new Date().toDateString()?"today":""}`}>
+              <button key={i} onClick={()=>setSelectedDay(day)} className={`day ${selectedDay?.toDateString()===day.toDateString()?"selected":""} ${day.toDateString()===new Date().toDateString()?"today":""} ${dayPlans.length?"day-has-plan":""}`}>
                 <span className="day-number">{day.getDate()}</span>
-                {dataReady&&members.length>0&&(
+                {dayPlans.length>0?(
+                  <span className="day-plan-badge" style={{background:dayPlans[0].color}} title={dayPlans[0].name}>{dayPlans[0].emoji}</span>
+                ):dataReady&&members.length>0&&(
                   <span className="mini-avatars">
                     {free.slice(0,3).map(m=><Avatar key={m.id} initials={initials(m.name)} color={m.avatar_color} src={m.avatar_url} small/>)}
                     {free.length>3&&<i className="mini-avatars-more">+{free.length-3}</i>}
@@ -91,6 +102,16 @@ export default function AvailabilityView({groups}:{groups:Group[]}){
         {selectedDay?(
           <>
             <div className="day-detail-head"><div><p className="eyebrow">{cap(selectedDay.toLocaleDateString("es-AR",{weekday:"long"}))}</p><h3>{cap(selectedDay.toLocaleDateString("es-AR",{day:"numeric",month:"long"}))}</h3></div><button onClick={()=>setSelectedDay(null)}><X size={18}/></button></div>
+            {groupPlansOnDay(selectedDay).length>0&&(
+              <div className="day-plan-list">
+                {groupPlansOnDay(selectedDay).map((p:any)=>(
+                  <button key={p.id} className="day-plan-row" onClick={()=>onSelectPlan?.(p.id)} disabled={!onSelectPlan}>
+                    <span className="day-plan-emoji" style={{background:p.color}}>{p.emoji}</span>
+                    <span><b>{p.name}</b><small>{new Date(p.starts_at).toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}</small></span>
+                  </button>
+                ))}
+              </div>
+            )}
             {members.length?(
               <div className="availability-list">
                 {members.map(m=>{
