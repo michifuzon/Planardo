@@ -59,10 +59,10 @@ export default function FriendCalendar({ friendId }: { friendId: string }) {
       <div className="weekdays">{WEEKDAYS.map((d, i) => <span key={i}>{d}</span>)}</div>
       <div className="calendar-grid">
         {days.map((day, i) => day ? (
-          <button type="button" key={i} className={`day ${isBusy(day) ? "day-busy" : ""} ${selectedDay?.getTime() === day.getTime() ? "selected" : ""}`} onClick={() => setSelectedDay(day)}>
+          <button type="button" key={i} className={`day ${isBusy(day) ? "day-busy" : ""} ${selectedDay?.getTime() === day.getTime() ? "selected" : ""} ${day.toDateString() === new Date().toDateString() ? "today" : ""}`} onClick={() => setSelectedDay(day)}>
             <span className="day-number">{day.getDate()}</span>
           </button>
-        ) : <span key={i} />)}
+        ) : <div className="day muted" key={i} />)}
       </div>
       {loading && <p className="detail-empty">Cargando disponibilidad…</p>}
       {!loading && selectedDay && (
