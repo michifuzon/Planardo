@@ -333,7 +333,8 @@ create policy "dm: solo entre amigos"
     )
   );
 
-create or replace function public.get_friend_busy(target_user uuid, range_start timestamptz, range_end timestamptz)
+drop function if exists public.get_friend_busy(uuid,timestamptz,timestamptz);
+create function public.get_friend_busy(target_user uuid, range_start timestamptz, range_end timestamptz)
 returns table(busy_from timestamptz, busy_until timestamptz)
 language plpgsql stable security definer set search_path=public
 as $$
