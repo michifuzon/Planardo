@@ -1,9 +1,11 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
+import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchPlanInvite, joinPlanWithInvite, type PlanInvite } from "@/lib/plans";
 import { fetchMyGroups } from "@/lib/groups";
+import { applyTheme, getStoredTheme } from "@/lib/theme";
 
 type State = "loading" | "ready" | "joining" | "joined" | "invalid" | "error";
 
@@ -13,6 +15,19 @@ export default function JoinPlanClient() {
   const [state, setState] = useState<State>("loading");
   const [invite, setInvite] = useState<PlanInvite | null>(null);
   const [inMyGroup, setInMyGroup] = useState(false);
+  const [light, setLight] = useState(false);
+
+  useEffect(() => {
+    const stored = getStoredTheme();
+    setLight(stored === "light");
+    applyTheme(stored);
+  }, []);
+
+  function toggleTheme() {
+    const next = light ? "dark" : "light";
+    setLight(!light);
+    applyTheme(next);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +70,7 @@ export default function JoinPlanClient() {
       <div className="auth-blob blob-b" />
       <div className="auth-blob blob-c" />
       <div className="auth-grain" />
+      <button className="icon-button auth-theme-toggle" onClick={toggleTheme} aria-label="Cambiar tema">{light ? <Moon size={19}/> : <Sun size={19}/>}</button>
 
       <div className="auth-card edge">
         {state === "loading" && (

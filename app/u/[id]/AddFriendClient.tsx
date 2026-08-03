@@ -2,10 +2,11 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Check, UserPlus } from "lucide-react";
+import { Check, Moon, Sun, UserPlus } from "lucide-react";
 import { useAuth } from "@/app/components/AuthProvider";
 import { fetchProfileById, type FullProfile } from "@/lib/profiles";
 import { fetchFriendships, sendFriendRequest } from "@/lib/friends";
+import { applyTheme, getStoredTheme } from "@/lib/theme";
 import Avatar from "@/app/components/Avatar";
 
 type State = "loading" | "self" | "friends" | "pending" | "ready" | "sending" | "sent" | "invalid" | "error";
@@ -18,6 +19,19 @@ export default function AddFriendClient() {
   const { user } = useAuth();
   const [state, setState] = useState<State>("loading");
   const [profile, setProfile] = useState<FullProfile | null>(null);
+  const [light, setLight] = useState(false);
+
+  useEffect(() => {
+    const stored = getStoredTheme();
+    setLight(stored === "light");
+    applyTheme(stored);
+  }, []);
+
+  function toggleTheme() {
+    const next = light ? "dark" : "light";
+    setLight(!light);
+    applyTheme(next);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -56,6 +70,7 @@ export default function AddFriendClient() {
       <div className="auth-blob blob-b" />
       <div className="auth-blob blob-c" />
       <div className="auth-grain" />
+      <button className="icon-button auth-theme-toggle" onClick={toggleTheme} aria-label="Cambiar tema">{light ? <Moon size={19}/> : <Sun size={19}/>}</button>
 
       <div className="auth-card edge share-profile-card">
         {state === "loading" && (
