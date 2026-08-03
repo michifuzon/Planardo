@@ -1,8 +1,8 @@
 "use client";
 
-import { Send } from "lucide-react";
+import { Send, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { fetchGroupMessages, sendGroupMessage } from "@/lib/messages";
+import { deleteGroupMessage, fetchGroupMessages, sendGroupMessage } from "@/lib/messages";
 import { useAuth } from "./AuthProvider";
 import Avatar from "./Avatar";
 
@@ -16,7 +16,8 @@ export default function GroupChat({ groupId }: { groupId: string }) {
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
 
-  const load = () => fetchGroupMessages(groupId).then(setMessages).catch(() => setMessages([]));
+  const load = () => fetchGroupMessages(groupId).then((rows) => { setMessages(rows); setError(""); })
+    .catch((err) => setError(err instanceof Error ? err.message : "No se pudieron cargar los mensajes."));
   useEffect(() => { setLoading(true); load().finally(() => setLoading(false)); }, [groupId]);
 
   async function send() {
@@ -34,6 +35,17 @@ export default function GroupChat({ groupId }: { groupId: string }) {
     }
   }
 
+  async function del(id: string) {
+    const prev = messages;
+    setMessages((list) => list.filter((m) => m.id !== id));
+    try {
+      await deleteGroupMessage(id);
+    } catch (err) {
+      setMessages(prev);
+      setError(err instanceof Error ? err.message : "No se pudo borrar el mensaje.");
+    }
+  }
+
   if (loading) return <div className="chat-panel edge"><div className="messages"><div className="auth-loading-mark" style={{ margin: "40px auto" }} /></div></div>;
 
   return (
@@ -45,7 +57,7 @@ export default function GroupChat({ groupId }: { groupId: string }) {
             <div className={`message ${mine ? "own" : ""}`} key={m.id}>
               {!mine && <Avatar initials={initials(m.profiles.name)} color={m.profiles.avatar_color} src={m.profiles.avatar_url} small />}
               <div>
-                <span>{!mine && <b>{m.profiles.name}</b>}<small>{new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</small></span>
+                <span>{!mine && <b>{m.profiles.name}</b>}<small>{new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</small>{mine && <button type="button" className="message-delete" onClick={() => del(m.id)} aria-label="Borrar mensaje"><Trash2 size={11} /></button>}</span>
                 <p>{m.body}</p>
               </div>
             </div>

@@ -1,8 +1,8 @@
 "use client";
 
-import { Send } from "lucide-react";
+import { Send, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { fetchDirectMessages, sendDirectMessage } from "@/lib/messages";
+import { deleteDirectMessage, fetchDirectMessages, sendDirectMessage } from "@/lib/messages";
 import { useAuth } from "./AuthProvider";
 
 export default function DirectChat({ otherId }: { otherId: string }) {
@@ -13,7 +13,8 @@ export default function DirectChat({ otherId }: { otherId: string }) {
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
 
-  const load = () => fetchDirectMessages(otherId).then(setMessages).catch(() => setMessages([]));
+  const load = () => fetchDirectMessages(otherId).then((rows) => { setMessages(rows); setError(""); })
+    .catch((err) => setError(err instanceof Error ? err.message : "No se pudieron cargar los mensajes."));
   useEffect(() => { setLoading(true); load().finally(() => setLoading(false)); }, [otherId]);
 
   async function send() {
@@ -31,6 +32,17 @@ export default function DirectChat({ otherId }: { otherId: string }) {
     }
   }
 
+  async function del(id: string) {
+    const prev = messages;
+    setMessages((list) => list.filter((m) => m.id !== id));
+    try {
+      await deleteDirectMessage(id);
+    } catch (err) {
+      setMessages(prev);
+      setError(err instanceof Error ? err.message : "No se pudo borrar el mensaje.");
+    }
+  }
+
   if (loading) return <div className="chat-panel edge"><div className="messages"><div className="auth-loading-mark" style={{ margin: "40px auto" }} /></div></div>;
 
   return (
@@ -41,7 +53,7 @@ export default function DirectChat({ otherId }: { otherId: string }) {
           return (
             <div className={`message ${mine ? "own" : ""}`} key={m.id}>
               <div>
-                <span><small>{new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</small></span>
+                <span><small>{new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</small>{mine && <button type="button" className="message-delete" onClick={() => del(m.id)} aria-label="Borrar mensaje"><Trash2 size={11} /></button>}</span>
                 <p>{m.body}</p>
               </div>
             </div>

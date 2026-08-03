@@ -183,6 +183,11 @@ export async function sendPlanMessage(planId:string,body:string){
   const db=client(); const {data:auth}=await db.auth.getUser();
   const {error}=await db.from("plan_messages").insert({plan_id:planId,user_id:auth.user?.id,body}); if(error)throw error;
 }
+export async function deletePlanMessage(id:string){
+  const {data,error}=await client().from("plan_messages").delete().eq("id",id).select();
+  if(error)throw error;
+  if(!data||!data.length)throw new Error("No se pudo borrar el mensaje (revisá los permisos).");
+}
 export async function setPlanTransport(planId:string,mode:string,seats:number){
   const db=client();const {data:auth}=await db.auth.getUser();
   const {error}=await db.from("plan_transport").upsert({plan_id:planId,user_id:auth.user?.id,mode,seats_available:seats});if(error)throw error;

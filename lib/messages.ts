@@ -13,6 +13,11 @@ export async function sendGroupMessage(groupId:string,body:string){
   const {error}=await db.from("group_messages").insert({group_id:groupId,user_id:auth.user?.id,body});
   if(error)throw error;
 }
+export async function deleteGroupMessage(id:string){
+  const {data,error}=await client().from("group_messages").delete().eq("id",id).select();
+  if(error)throw error;
+  if(!data||!data.length)throw new Error("No se pudo borrar el mensaje (revisá los permisos).");
+}
 export async function fetchDirectMessages(otherId:string){
   const db=client(); const {data:auth}=await db.auth.getUser();
   if(!auth.user)return [];
@@ -26,4 +31,9 @@ export async function sendDirectMessage(otherId:string,body:string){
   const db=client(); const {data:auth}=await db.auth.getUser();
   const {error}=await db.from("direct_messages").insert({sender_id:auth.user?.id,recipient_id:otherId,body});
   if(error)throw error;
+}
+export async function deleteDirectMessage(id:string){
+  const {data,error}=await client().from("direct_messages").delete().eq("id",id).select();
+  if(error)throw error;
+  if(!data||!data.length)throw new Error("No se pudo borrar el mensaje (revisá los permisos).");
 }
