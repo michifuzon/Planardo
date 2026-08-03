@@ -371,9 +371,9 @@ export default function Page() {
                       const dayBlocks = monthAvailability.filter(b => b.day === dateKey(day));
                       const dayIsBusy = dayBlocks.some(b => b.status === "busy");
                       return (
-                        <button key={i} onClick={() => setSelectedDay(day)} className={`day ${selectedDay?.toDateString()===day.toDateString()?"selected":""} ${day.toDateString()===new Date().toDateString()?"today":""} ${dayIsBusy?"day-busy":""}`}>
+                        <button key={i} onClick={() => setSelectedDay(day)} className={`day ${selectedDay?.toDateString()===day.toDateString()?"selected":""} ${day.toDateString()===new Date().toDateString()?"today":""} ${dayPlans.length?"day-has-plan":dayIsBusy?"day-busy":""}`}>
                           <span className="day-number">{day.getDate()}</span>
-                          {dayPlans.length > 0 && <span className="day-dots">{dayPlans.slice(0,3).map((p:any)=><i key={p.id} style={{background:p.color}}/>)}</span>}
+                          {dayPlans.length > 0 && <span className="day-plan-badge" style={{background:dayPlans[0].color}} title={dayPlans[0].name}>{dayPlans[0].emoji}</span>}
                         </button>
                       );
                     })}
