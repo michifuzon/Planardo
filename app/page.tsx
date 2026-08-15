@@ -53,6 +53,8 @@ export default function Page() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [calendarMonth,setCalendarMonth]=useState(()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),1)});
   const [myProfile,setMyProfile]=useState<FullProfile|null>(null);
+  const [profileLoaded,setProfileLoaded]=useState(!supabaseEnabled);
+  const [friendsLoaded,setFriendsLoaded]=useState(!supabaseEnabled);
   const [toast, setToast] = useState(false);
   const [todayBusy, setTodayBusy] = useState<Record<string, { from: Date; until: Date }[]>>({});
   const [groups, setGroups] = useState<Group[]>([]);
@@ -70,6 +72,7 @@ export default function Page() {
   const [availFrom, setAvailFrom] = useState("");
   const [availTo, setAvailTo] = useState("");
   const [availSaving, setAvailSaving] = useState(false);
+  const [availError, setAvailError] = useState("");
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   useEffect(() => { if (selectedPlan) window.scrollTo({ top: 0 }); }, [selectedPlan]);
   const [notifications,setNotifications]=useState<any[]>([]);
@@ -112,9 +115,9 @@ export default function Page() {
   useEffect(() => {
     if (user && supabaseEnabled) fetchMyPlans().then(setPlans).catch(()=>setPlans([]));
   }, [user?.id]);
-  useEffect(()=>{if(user&&supabaseEnabled)fetchMyProfile().then(setMyProfile).catch(()=>setMyProfile(null))},[user?.id]);
+  useEffect(()=>{if(user&&supabaseEnabled)fetchMyProfile().then(setMyProfile).catch(()=>setMyProfile(null)).finally(()=>setProfileLoaded(true))},[user?.id]);
   useEffect(()=>{if(user&&supabaseEnabled)fetchNotifications().then(setNotifications).catch(()=>setNotifications([]))},[user?.id]);
-  useEffect(()=>{if(user&&supabaseEnabled)fetchFriendships().then(rows=>setDirectFriends(rows.filter((r:any)=>r.status==="accepted").map((r:any)=>r.person))).catch(()=>setDirectFriends([]))},[user?.id]);
+  useEffect(()=>{if(user&&supabaseEnabled)fetchFriendships().then(rows=>setDirectFriends(rows.filter((r:any)=>r.status==="accepted").map((r:any)=>r.person))).catch(()=>setDirectFriends([])).finally(()=>setFriendsLoaded(true))},[user?.id]);
 
   useEffect(() => {
     if (!groups.length) { setTodayBusy({}); return; }
@@ -186,6 +189,11 @@ export default function Page() {
 
   async function addAvail() {
     if (!selectedDay || availSaving) return;
+    if (availFrom && availTo && availTo <= availFrom) {
+      setAvailError("La hora de fin tiene que ser después de la de inicio.");
+      return;
+    }
+    setAvailError("");
     setAvailSaving(true);
     try {
       // Un solo estado por día: cargar uno nuevo siempre reemplaza los anteriores.
@@ -225,6 +233,14 @@ export default function Page() {
   }, [todayBusy]);
   const availableToday = useMemo(() => friends.filter(f => isFreeToday(f.id)), [friends, isFreeToday]);
   const upcomingPlans = useMemo(() => plans.filter((p: any) => new Date(p.ends_at || p.starts_at) >= new Date()), [plans]);
+
+  if (!profileLoaded || !friendsLoaded || groupsLoading) {
+    return (
+      <div className="page-loading">
+        <img src="/planardo-mark-128.png" alt="" />
+      </div>
+    );
+  }
 
   return (
     <main className="app-shell">
@@ -415,12 +431,13 @@ export default function Page() {
                             <option value="available">🟢 Libre</option>
                           </select>
                           <div className="day-avail-times">
-                            <input type="time" value={availFrom} onChange={e=>setAvailFrom(e.target.value)} aria-label="Desde"/>
+                            <input type="time" value={availFrom} onChange={e=>{setAvailFrom(e.target.value);setAvailError("")}} aria-label="Desde"/>
                             <span>a</span>
-                            <input type="time" value={availTo} onChange={e=>setAvailTo(e.target.value)} aria-label="Hasta"/>
+                            <input type="time" value={availTo} onChange={e=>{setAvailTo(e.target.value);setAvailError("")}} aria-label="Hasta"/>
                             <button className="day-avail-add" onClick={addAvail} disabled={availSaving}><Plus size={15}/></button>
                           </div>
                         </div>
+                        {availError && <p className="groups-fetch-error">{availError}</p>}
                         <p className="availability-note">Dejá el horario vacío para marcar el día completo. Solo se guarda un estado por día.</p>
                       </div>
                     </>
