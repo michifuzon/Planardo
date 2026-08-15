@@ -53,6 +53,9 @@ button,input{font:inherit}button{color:inherit}.app-shell{min-height:100vh;displ
 .friend-calendar{text-align:left}
 .friend-calendar .calendar-header{margin-bottom:16px;padding:0}
 .friend-calendar .calendar-header h2{font-size:15px}
+.friend-calendar .calendar-header button{width:32px;height:32px;flex:0 0 auto;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);border-radius:10px;display:grid;place-items:center;cursor:pointer}
+.friend-calendar .calendar-header svg{width:15px}
+.friend-calendar .calendar-grid{overflow:hidden}
 .friend-calendar .day.day-busy{background:rgba(244,63,94,.08)}
 .friend-day-detail{margin-top:14px;border-top:1px solid var(--line);padding-top:14px}
 .friend-day-detail b{font-size:12px}
@@ -153,7 +156,7 @@ button,input{font:inherit}button{color:inherit}.app-shell{min-height:100vh;displ
 .plans-empty>span{font-size:22px}.plans-empty div{display:grid;gap:4px}.plans-empty b{font-size:13px}.plans-empty small{font-size:11px;color:var(--muted)}.plans-empty>svg{margin-left:auto;color:var(--muted)}
 .duration-hint{margin:-3px 2px 1px;color:#a982ff;font-size:10px;font-weight:650}
 .emoji-select{flex-direction:column;align-items:flex-start;gap:10px}.emoji-select>div{flex-wrap:wrap;gap:8px}
-.profile-panel{max-width:760px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:26px}
+.profile-panel{max-width:1200px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:26px}
 .profile-hero{display:flex;align-items:center;gap:16px;padding-bottom:24px;border-bottom:1px solid var(--line)}
 .profile-photo{border:0;background:none;padding:0;position:relative;cursor:pointer;flex:0 0 auto}
 .profile-avatar-frame{width:72px;height:72px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;font-size:20px;font-weight:800;border:2px solid var(--surface);flex:0 0 auto}
